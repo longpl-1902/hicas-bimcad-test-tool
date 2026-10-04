@@ -1,4 +1,5 @@
 using System.Text;
+using FlaUI.Core;
 using FlaUI.Core.AutomationElements;
 using FlaUI.Core.Capturing;
 using FlaUI.Core.Definitions;
@@ -20,10 +21,16 @@ public sealed class UiDriver(int pid) : IDisposable
         ControlType.SplitButton, ControlType.Hyperlink,
     };
 
-    private readonly UIA3Automation _automation = new();
+    // Revit answers UI Automation slowly: one descendant search of its main window (~500 elements) takes 15-30 s,
+    // longer than the default transaction timeout. Allow a full search instead of failing it.
+    private readonly UIA3Automation _automation = new()
+    {
+        TransactionTimeout = TimeSpan.FromSeconds(90),
+        ConnectionTimeout = TimeSpan.FromSeconds(10),
+    };
 
     /// <summary>Captures the host's main window including any dialog on top of it (screen copy of its bounds).</summary>
-    public string Screenshot(string path)
+    public string Screenshot(string path) => WhileBusy(() =>
     {
         using var app = FlaUI.Core.Application.Attach(pid);
         var main = app.GetMainWindow(_automation, TimeSpan.FromSeconds(10))
@@ -33,17 +40,32 @@ public sealed class UiDriver(int pid) : IDisposable
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         Capture.Element(main).ToFile(path);
         return path;
-    }
+    });
 
     /// <summary>Lists windows and their interactive controls so Claude can choose what to click.</summary>
-    public string Describe(string? windowFilter, string? textFilter, int max = 150)
+    public string Describe(string? windowFilter, string? textFilter, int max = 150) =>
+        WhileBusy(() => DescribeOnce(windowFilter, textFilter, max));
+
+    private string DescribeOnce(string? windowFilter, string? textFilter, int max)
     {
         var sb = new StringBuilder();
         var count = 0;
+        // Fetch the properties with the search instead of one slow cross-process call per property.
+        var cache = new CacheRequest { TreeScope = TreeScope.Element };
+        cache.Add(_automation.PropertyLibrary.Element.Name);
+        cache.Add(_automation.PropertyLibrary.Element.AutomationId);
+        cache.Add(_automation.PropertyLibrary.Element.ControlType);
+        cache.Add(_automation.PropertyLibrary.Element.IsEnabled);
         foreach (var window in Windows(windowFilter))
         {
             sb.AppendLine($"[window] \"{window.Title}\"");
-            var interactive = new FlaUI.Core.Conditions.OrCondition(Interactive.Select(t => (FlaUI.Core.Conditions.ConditionBase)window.ConditionFactory.ByControlType(t)).ToArray());
+            // Task dialog and Revit Win32 dialog buttons are Pane elements of class CCPushButton / Button.
+            var interactive = new FlaUI.Core.Conditions.OrCondition(Interactive
+                .Select(t => (FlaUI.Core.Conditions.ConditionBase)window.ConditionFactory.ByControlType(t))
+                .Append(window.ConditionFactory.ByClassName("CCPushButton"))
+                .Append(window.ConditionFactory.ByClassName("Button"))
+                .ToArray());
+            using var caching = cache.Activate();
             foreach (var element in window.FindAllDescendants(interactive))
             {
                 var name = Safe(() => element.Name);
@@ -68,8 +90,8 @@ public sealed class UiDriver(int pid) : IDisposable
     public string Click(string? windowFilter, string target)
     {
         var element = Find(windowFilter, target);
-        if (element.Patterns.Invoke.IsSupported)
-            element.Patterns.Invoke.Pattern.Invoke();
+        if (element.Patterns.Invoke.IsSupported || HostWindows.IsButtonElement(element))
+            HostWindows.Press(element);
         else if (element.Patterns.Toggle.IsSupported)
             element.Patterns.Toggle.Pattern.Toggle();
         else if (element.Patterns.SelectionItem.IsSupported)
@@ -91,7 +113,10 @@ public sealed class UiDriver(int pid) : IDisposable
         return $"typed into \"{Safe(() => element.Name)}\"";
     }
 
-    private AutomationElement Find(string? windowFilter, string target)
+    // Only the lookup is retried: pressing twice could run the action twice.
+    private AutomationElement Find(string? windowFilter, string target) => WhileBusy(() => FindOnce(windowFilter, target));
+
+    private AutomationElement FindOnce(string? windowFilter, string target)
     {
         foreach (var window in Windows(windowFilter))
         {
@@ -103,14 +128,32 @@ public sealed class UiDriver(int pid) : IDisposable
         throw new InvalidOperationException($"No control \"{target}\" in {(windowFilter == null ? "any window" : $"window \"{windowFilter}\"")}. Use the ui list tool first.");
     }
 
-    private IEnumerable<Window> Windows(string? filter)
-    {
-        using var app = FlaUI.Core.Application.Attach(pid);
+    private IEnumerable<Window> Windows(string? filter) =>
         // Dialogs first: they are usually what the next step needs.
-        return app.GetAllTopLevelWindows(_automation)
-            .Where(w => filter == null || Contains(Safe(() => w.Title), filter))
-            .OrderBy(w => Safe(() => w.Properties.NativeWindowHandle.ValueOrDefault) == app.MainWindowHandle ? 1 : 0)
+        HostWindows.List(pid, _automation)
+            .Where(w => filter == null || Contains(Safe(() => w.Window.Title), filter))
+            .OrderBy(w => w.IsMainWindow ? 1 : 0)
+            .Select(w => w.Window)
             .ToList();
+
+    /// <summary>
+    /// The host's UI thread can be busy for a while (e.g. Revit regenerating right after opening a large model);
+    /// UI Automation calls then time out. One retry after a pause; the long transaction timeout covers the rest.
+    /// </summary>
+    private static T WhileBusy<T>(Func<T> action)
+    {
+        const int attempts = 2;
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                return action();
+            }
+            catch (Exception ex) when (attempt < attempts && HostWindows.IsTimeout(ex))
+            {
+                Thread.Sleep(TimeSpan.FromSeconds(3));
+            }
+        }
     }
 
     private static bool Contains(string? text, string part) => (text ?? "").Contains(part, StringComparison.OrdinalIgnoreCase);

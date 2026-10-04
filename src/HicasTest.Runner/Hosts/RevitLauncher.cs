@@ -44,6 +44,7 @@ public sealed class RevitLauncher : IHostLauncher
             File.Delete(underTestManifest);
         }
 
+        Process? process = null;
         try
         {
             WriteManifest(bridgeManifest, bridgeDll, "HicasTest.Bridge.Revit.App", BridgeAddinId, "HicasTest bridge");
@@ -52,8 +53,9 @@ public sealed class RevitLauncher : IHostLauncher
 
             var language = MachineConfig.Current.RevitLanguage;
             var arguments = string.IsNullOrWhiteSpace(language) ? "" : "/language " + language;
-            var process = Process.Start(new ProcessStartInfo(exe, arguments) { UseShellExecute = false })
-                          ?? throw new InvalidOperationException("Revit did not start.");
+            // Shell start: Revit must not inherit our stdout, which is the MCP channel (it logs there).
+            process = Process.Start(new ProcessStartInfo(exe, arguments) { UseShellExecute = true })
+                      ?? throw new InvalidOperationException("Revit did not start.");
             dialogs.Watch(process.Id, StartupDialogs);
 
             var info = await BridgeDiscovery.WaitForAsync(process, options.StartupTimeout, ct);
@@ -62,6 +64,7 @@ public sealed class RevitLauncher : IHostLauncher
         }
         catch
         {
+            HostProcess.KillQuietly(process);
             Cleanup();
             throw;
         }

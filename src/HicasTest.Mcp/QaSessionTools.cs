@@ -4,13 +4,14 @@ using HicasTest.Protocol;
 using HicasTest.Runner;
 using HicasTest.Runner.Model;
 using HicasTest.Runner.Sessions;
+using ModelContextProtocol;
 using ModelContextProtocol.Server;
 
 namespace HicasTest.Mcp;
 
 /// <summary>
 /// Interactive QA sessions: Claude drives Revit/AutoCAD step by step on a fixture copy, with a screenshot and a
-/// change summary per step, then writes a report. Evidence only — QA decides Pass/Fail.
+/// change summary per step, then writes a report. Evidence only â€” QA decides Pass/Fail.
 /// </summary>
 [McpServerToolType]
 public static class QaSessionTools
@@ -50,7 +51,16 @@ public static class QaSessionTools
         if (!string.IsNullOrWhiteSpace(outputDir))
             options.OutputDir = Path.GetFullPath(outputDir);
 
-        var session = await QaSession.StartAsync(title, spec, options, ct);
+        QaSession session;
+        try
+        {
+            session = await QaSession.StartAsync(title, spec, options, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException and not McpException)
+        {
+            // The SDK hides the message of other exceptions; startup failures need it (timeout, missing bridge...).
+            throw new McpException($"{app} {version} did not start: {ex.Message}", ex);
+        }
         SessionRegistry.Add(session);
         return $"session {session.Id} (pid {session.Pid})\n" + Describe(session.Steps[^1]);
     }
@@ -72,6 +82,7 @@ public static class QaSessionTools
         int timeoutSec = 300,
         [Description("false = return right after the command starts (to click through its dialogs).")] bool wait = true,
         CancellationToken ct = default)
+    => await ToolErrors.Surface(async () =>
     {
         var session = SessionRegistry.Get(sessionId);
         var step = await session.RunCommandAsync(new RunCommandRequest
@@ -85,21 +96,21 @@ public static class QaSessionTools
             TimeoutSec = timeoutSec,
         }, ParseRules(dialogs), wait, ct);
         return Describe(step);
-    }
+    });
 
     [McpServerTool(Name = "qa_session_finish_command"), Description(
         "Wait for a command started with wait=false to finish and record its changes, dialogs and a screenshot.")]
-    public static async Task<string> FinishCommand(string sessionId, int timeoutSec = 120, CancellationToken ct = default) =>
-        Describe(await SessionRegistry.Get(sessionId).FinishCommandAsync(TimeSpan.FromSeconds(timeoutSec), ct));
+    public static Task<string> FinishCommand(string sessionId, int timeoutSec = 120, CancellationToken ct = default) =>
+        ToolErrors.Surface(async () => Describe(await SessionRegistry.Get(sessionId).FinishCommandAsync(TimeSpan.FromSeconds(timeoutSec), ct)));
 
     [McpServerTool(Name = "qa_session_ui"), Description(
         "List windows of the host and their clickable controls (name / automation id). Use before clicking. " +
         "Filter by window title and/or control text to keep it short (the main window has many ribbon controls).")]
     public static string Ui(string sessionId, string? window = null, string? text = null) =>
-        SessionRegistry.Get(sessionId).DescribeUi(window, text);
+        ToolErrors.Surface(() => SessionRegistry.Get(sessionId).DescribeUi(window, text));
 
     [McpServerTool(Name = "qa_session_click"), Description(
-        "Click a control by exact name or automation id (ribbon tab/button, dialog button, list item…), then screenshot.")]
+        "Click a control by exact name or automation id (ribbon tab/button, dialog button, list itemâ€¦), then screenshot.")]
     public static async Task<string> Click(string sessionId, string target, [Description("Window title filter.")] string? window = null, CancellationToken ct = default) =>
         Describe(await SessionRegistry.Get(sessionId).ClickAsync(window, target, ct));
 
@@ -119,6 +130,7 @@ public static class QaSessionTools
         "Read-only: elements of a category with parameter values in the session's model (verify what a step produced).")]
     public static async Task<string> Query(string sessionId, string category, [Description("Comma-separated parameter names.")] string parameters = "",
         string? unit = null, int limit = 50, CancellationToken ct = default)
+    => await ToolErrors.Surface(async () =>
     {
         var request = new QueryRequest { Category = category, Limit = limit };
         foreach (var name in parameters.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
@@ -130,21 +142,21 @@ public static class QaSessionTools
             sb.AppendLine($"{e.Id} {e.Category} '{e.Name}': " + string.Join(", ",
                 e.Values.Select(v => $"{v.Name}={(v.Found ? v.Number?.ToString() ?? v.Text : "<missing>")}{(v.Display != null ? $" [{v.Display}]" : "")}")));
         return sb.ToString();
-    }
+    });
 
     [McpServerTool(Name = "qa_session_end"), Description("Close the host (model copy is discarded) and write report.md with every step and screenshot. Returns the report path.")]
-    public static async Task<string> End(string sessionId)
+    public static Task<string> End(string sessionId) => ToolErrors.Surface(async () =>
     {
         var session = SessionRegistry.Remove(sessionId) ?? throw new ArgumentException($"No open session '{sessionId}'.");
         var report = session.WriteReport();
         await session.DisposeAsync();
         return $"report: {report} ({session.Steps.Count} steps)";
-    }
+    });
 
     [McpServerTool(Name = "qa_session_list"), Description("List open QA sessions.")]
     public static string List() =>
         SessionRegistry.All() is { Count: > 0 } all
-            ? string.Join("\n", all.Select(s => $"{s.Id}: {s.Title} — {s.Spec.Host.App} {s.Spec.Host.Version}, pid {s.Pid}, {s.Steps.Count} steps"))
+            ? string.Join("\n", all.Select(s => $"{s.Id}: {s.Title} â€” {s.Spec.Host.App} {s.Spec.Host.Version}, pid {s.Pid}, {s.Steps.Count} steps"))
             : "No open session.";
 
     private static IEnumerable<DialogSpec> ParseRules(string? rules) =>

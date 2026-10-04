@@ -31,10 +31,12 @@ public sealed class AutoCadLauncher : IHostLauncher
         File.WriteAllText(script, BuildScript(bridgeDll, testCase.Addin?.Assembly), Encoding.ASCII);
         void Cleanup() => File.Delete(script);
 
+        Process? process = null;
         try
         {
-            var process = Process.Start(new ProcessStartInfo(exe, $"/nologo /b \"{script}\"") { UseShellExecute = false })
-                          ?? throw new InvalidOperationException("AutoCAD did not start.");
+            // Shell start: the host must not inherit our stdout, which is the MCP channel.
+            process = Process.Start(new ProcessStartInfo(exe, $"/nologo /b \"{script}\"") { UseShellExecute = true })
+                      ?? throw new InvalidOperationException("AutoCAD did not start.");
             dialogs.Watch(process.Id, StartupDialogs);
 
             var info = await BridgeDiscovery.WaitForAsync(process, options.StartupTimeout, ct);
@@ -43,6 +45,7 @@ public sealed class AutoCadLauncher : IHostLauncher
         }
         catch
         {
+            HostProcess.KillQuietly(process);
             Cleanup();
             throw;
         }

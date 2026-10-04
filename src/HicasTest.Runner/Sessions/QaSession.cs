@@ -77,8 +77,20 @@ public sealed class QaSession : IAsyncDisposable
 
         await session.StepAsync("open model", async step =>
         {
+            await host.Client.CallAsync<Empty>(Methods.SetDialogRules, new DialogRulesRequest
+            {
+                Rules = OpenModelDialogs.Bridge.Select(d => new DialogRule { Match = d.Match, Answer = d.Answer }).ToList(),
+            }, ct);
+            dialogs.Watch(host.Process.Id, OpenModelDialogs.Ui);
             var doc = await host.Client.CallAsync<DocumentInfo>(Methods.OpenDocument, new OpenDocumentRequest { Path = model }, ct);
-            step.Detail = $"{spec.Host.App} {spec.Host.Version}, opened copy of {Path.GetFileName(spec.Model)} ({doc.Title})";
+            // Startup (add-in security) and open-model dialogs, so the report shows what was answered on QA's behalf.
+            var dialogEvents = dialogs.TakeEvents()
+                .Concat((await host.Client.CallAsync<DialogEventList>(Methods.TakeDialogEvents, null, ct)).Events)
+                .DistinctBy(d => (d.Source, d.DialogId, d.Answer, d.Handled));
+            var sb = new StringBuilder($"{spec.Host.App} {spec.Host.Version}, opened copy of {Path.GetFileName(spec.Model)} ({doc.Title})");
+            foreach (var d in dialogEvents)
+                sb.Append($"\n  dialog [{d.Source}] {d.DialogId} {d.Message} → {(d.Handled ? d.Answer : "not answered")}");
+            step.Detail = sb.ToString();
         }, screenshot: true);
         return session;
     }

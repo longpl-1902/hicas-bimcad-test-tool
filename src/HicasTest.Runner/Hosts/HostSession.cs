@@ -33,6 +33,30 @@ public sealed class HostSession(Process process, BridgeInfo info, BridgeClient c
     }
 }
 
+internal static class HostProcess
+{
+    /// <summary>Ends a host that failed to start properly so it does not stay behind on a startup dialog.</summary>
+    public static void KillQuietly(Process? process)
+    {
+        if (process == null)
+            return;
+        try
+        {
+            if (!process.HasExited)
+                process.Kill(entireProcessTree: true);
+            process.WaitForExit(30_000);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            // already gone or exiting
+        }
+        finally
+        {
+            process.Dispose();
+        }
+    }
+}
+
 public interface IHostLauncher
 {
     Task<HostSession> StartAsync(Model.TestCase testCase, RunOptions options, DialogDriver dialogs, CancellationToken ct);

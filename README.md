@@ -98,6 +98,8 @@ Chi tiết: [docs/architecture.md](docs/architecture.md).
 2. Copy fixture sang thư mục chạy (file gốc không bao giờ bị sửa).
 3. Mở Revit/AutoCAD đúng năm, nạp bridge + bản build cần test (Revit: manifest `.addin` tạm; AutoCAD: script `NETLOAD`).
    Hộp thoại bảo mật lúc khởi động được trả lời **Load once** (không đổi thiết lập tin cậy).
+   Lúc mở model: Revit báo thiếu link (Unresolved References) → bỏ qua và mở tiếp; bảng cảnh báo có sẵn trong model
+   (chỉ khi **0 Errors**) → OK. Các hộp thoại này được ghi vào báo cáo ở bước "open model".
 4. Bật ghi thay đổi, chạy lệnh (`postcommand` cho Revit, `commandline` cho AutoCAD, hoặc `invoke` gọi thẳng hàm).
    Hộp thoại được trả lời theo luật trong YAML.
 5. Đọc giá trị, so với kỳ vọng: số phần tử thêm/sửa/xoá, giá trị tham số theo đơn vị và dung sai, không có warning…

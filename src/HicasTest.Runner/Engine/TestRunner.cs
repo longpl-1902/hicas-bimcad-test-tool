@@ -59,9 +59,9 @@ public sealed class TestRunner(RunOptions options)
 
             await bridge.CallAsync<Empty>(Methods.SetDialogRules, new DialogRulesRequest
             {
-                Rules = testCase.Dialogs.Select(d => new DialogRule { Match = d.Match, Answer = d.Answer }).ToList(),
+                Rules = OpenModelDialogs.WithBridge(testCase.Dialogs).Select(d => new DialogRule { Match = d.Match, Answer = d.Answer }).ToList(),
             }, ct);
-            dialogs.Watch(session.Process.Id, testCase.Dialogs);
+            dialogs.Watch(session.Process.Id, OpenModelDialogs.WithUi(testCase.Dialogs));
 
             await bridge.CallAsync<DocumentInfo>(Methods.OpenDocument, new OpenDocumentRequest { Path = model }, ct);
             await bridge.CallAsync<Empty>(Methods.StartRecording, null, ct);

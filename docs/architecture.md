@@ -79,10 +79,18 @@ Methods (`HicasTest.Protocol.Methods`): `bridge.info`, `doc.open`, `doc.close`, 
 1. Load YAML, validate (every value check must cite its oracle `source`).
 2. Copy the fixture to `out/<case>/<stamp>-r<n>/`.
 3. Launch the host with the bridge and the add-in under test (Revit: temporary `.addin` manifests;
-   AutoCAD: startup script with `NETLOAD`). Startup security dialogs → "Load once" via FlaUI.
+   AutoCAD: startup script with `NETLOAD`). Startup security dialogs → "Load once" via FlaUI. The host is
+   started through the shell so it does not inherit the MCP server's stdout. If startup fails the host is killed.
 4. Wait for the discovery file, connect.
 5. `dialogs.setRules` → `doc.open` → `recorder.start` → `command.run` (FlaUI watches dialogs meanwhile)
-   → `recorder.stop` → `dialogs.take`.
+   → `recorder.stop` → `dialogs.take`. Case rules come first; `OpenModelDialogs` adds the answers needed to open a
+   fixture (Revit unresolved references → ignore and continue; model warnings with 0 errors → OK, pressed from
+   outside because overriding that dialog through the API cancels the open).
+
+The FlaUI dialog driver (`DialogDriver`, `HostWindows`) lists windows with Win32 `EnumWindows`: UI Automation nests
+an owned dialog under its owner, so a desktop-children scan misses Revit's startup dialog. Task dialog command
+buttons (`CCPushButton`) and Revit's Win32 buttons are exposed as Pane without patterns; they are matched by class
+and pressed with `WM_COMMAND` (Win32) or Invoke / LegacyIAccessible, falling back to a mouse click.
 6. Evaluate expectations (`elements.query` where needed), export image.
 7. Kill the host, remove temporary manifests, write `result.json`, `report.md`, ledger row.
 
@@ -100,7 +108,9 @@ Methods (`HicasTest.Protocol.Methods`): `bridge.info`, `doc.open`, `doc.close`, 
 fixture copy. Every action is a numbered step with a detail text and a window screenshot (`UiDriver`, FlaUI screen
 capture of the main window, so dialogs on top are included). `run_command` with `wait=false` returns as soon as
 the command starts, so Claude can drive its dialog with `qa_session_ui/click/type` and then
-`qa_session_finish_command` collects changes and dialogs. While a command is pending the bridge pipe is busy:
+`qa_session_finish_command` collects changes and dialogs. Revit answers UI Automation slowly (one search of the
+main window: ~20 s on 2024, ~55 s on 2026), so `UiDriver` uses a 90 s transaction timeout, cached properties and
+one retry when the host is busy. While a command is pending the bridge pipe is busy:
 queries are refused until it finishes. `qa_session_end` writes `sessions/<id>/report.md`. Sessions give evidence,
 never a verdict.
 

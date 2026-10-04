@@ -38,17 +38,15 @@ public sealed class DialogDriver : IDisposable
 
     private async Task LoopAsync(int pid, CancellationToken ct)
     {
-        using var app = FlaUI.Core.Application.Attach(pid);
         while (!ct.IsCancellationRequested)
         {
             try
             {
-                var mainHandle = app.MainWindowHandle;
-                foreach (var window in app.GetAllTopLevelWindows(_automation))
+                foreach (var host in HostWindows.List(pid, _automation))
                 {
-                    if (window.Properties.NativeWindowHandle.ValueOrDefault == mainHandle)
+                    if (host.IsMainWindow)
                         continue; // never click inside the main window
-                    TryAnswer(window);
+                    TryAnswer(host.Window);
                 }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
@@ -75,24 +73,42 @@ public sealed class DialogDriver : IDisposable
             if (title.IndexOf(rule.Match, StringComparison.OrdinalIgnoreCase) < 0 && !ContainsText(window, rule.Match))
                 continue;
 
-            var button = window.FindFirstDescendant(cf =>
-                cf.ByControlType(ControlType.Button).And(cf.ByName(rule.Answer)))?.AsButton();
+            var button = window.FindAllDescendants().FirstOrDefault(e =>
+                HostWindows.IsButtonNamed(Safe(() => e.ControlType), Safe(() => e.ClassName), Safe(() => e.Name), rule.Answer));
+            var handled = false;
+            if (button != null)
+            {
+                HostWindows.Press(button);
+                handled = true;
+            }
             _events.Enqueue(new DialogEvent
             {
                 Source = "flaui",
                 DialogId = title,
                 Message = rule.Match,
                 Answer = rule.Answer,
-                Handled = button != null,
+                Handled = handled,
             });
-            button?.Invoke();
             return;
         }
     }
 
+    // Any element, not only Text: Revit's Win32 dialogs expose their labels as Pane/Edit.
     private static bool ContainsText(Window window, string text) =>
-        window.FindAllDescendants(cf => cf.ByControlType(ControlType.Text))
-            .Any(t => (t.Name ?? string.Empty).IndexOf(text, StringComparison.OrdinalIgnoreCase) >= 0);
+        window.FindAllDescendants()
+            .Any(t => (Safe(() => t.Name) ?? string.Empty).IndexOf(text, StringComparison.OrdinalIgnoreCase) >= 0);
+
+    private static T? Safe<T>(Func<T> read)
+    {
+        try
+        {
+            return read();
+        }
+        catch (Exception)
+        {
+            return default; // element vanished or property unsupported
+        }
+    }
 
     public void Dispose()
     {
