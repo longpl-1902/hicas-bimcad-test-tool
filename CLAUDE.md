@@ -28,7 +28,8 @@ Tool that runs hicas-bimcad level-B test cases inside real Revit / AutoCAD. Read
 - `src/HicasTest.Bridge.Core` — pipe server, router, change log, filters (net48; net8.0)
 - `src/HicasTest.Bridge.Revit` / `.AutoCAD` — host adapters, one build per host version
 - `src/HicasTest.Runner` — cases, launchers, FlaUI dialogs/UI driver, QA sessions, assertions, reports, ledger, machine config
-- `integration/hicas-bimcad` — proposed skills and patches for the hicas-bim-cad-skills repo (not applied there)
+- `integration/hicas-bimcad` — original proposal, applied in hicas-bimcad 1.1.0; change skills in the
+  hicas-bim-cad-skills repo, not here
 - `src/HicasTest.Cli` (`hicastest`) / `src/HicasTest.Mcp` (`hicastest-mcp`)
 - `tests/HicasTest.Runner.Tests` — host-free tests (xunit)
 

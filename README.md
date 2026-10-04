@@ -210,8 +210,8 @@ Kết quả: `out/<case>/report-*.md` (đọc được), `result-*.json`, thư m
 
 ### Qua Claude (MCP `hicas-test`)
 
-- Dev agent: skill `b-auto-run` (đề xuất, xem mục 6) gọi `validate_test_case` → `run_test_case`.
-- QA: skill `qa-test-session` (đề xuất) gọi các tool `qa_session_*`.
+- Dev agent: skill `hicas-bimcad:b-auto-run` (plugin 1.1.0, xem mục 6) gọi `validate_test_case` → `run_test_case`.
+- QA: skill `hicas-bimcad:qa-test-session` gọi các tool `qa_session_*`.
 - Đọc nhanh model đang mở: `list_bridges` → `query_elements`.
 
 ### Kết hợp với plugin hicas-bimcad
@@ -229,12 +229,13 @@ Vị trí file theo story: YAML `F/b-cases/`, bằng chứng `F/evidence/host/<n
 
 ---
 
-## 6. Tích hợp với skill hiện tại — cần cập nhật gì
+## 6. Tích hợp với skill hiện tại
 
-Plugin hicas-bimcad (repo `longpl-1902/hicas-bim-cad-skills`) **chưa được sửa**. Đề xuất nằm ở
-[integration/hicas-bimcad/](integration/hicas-bimcad/README.md):
+**Đã áp dụng ở plugin hicas-bimcad 1.1.0** (repo `longpl-1902/hicas-bim-cad-skills`, commit `cc641a7`).
+Cập nhật trong Claude Code: `/plugin marketplace update hicas-skills`. Bản gốc của đề xuất vẫn giữ ở
+[integration/hicas-bimcad/](integration/hicas-bimcad/README.md) để tham khảo.
 
-| Đề xuất | Lý do |
+| Thay đổi | Lý do |
 |---|---|
 | Skill mới `b-auto-run` | Dịch kịch bản cấp B → YAML, chạy trên mọi năm deploy đã cài, gắn báo cáo vào `qa-handover.md`, ghi ledger |
 | Skill mới `qa-test-session` | QA test bằng lời, Claude điều khiển từng bước có ảnh |
@@ -245,6 +246,8 @@ Plugin hicas-bimcad (repo `longpl-1902/hicas-bim-cad-skills`) **chưa được s
 | Thêm 1 dòng rubric `evaluator` | `MATCH` của tool không phải Pass |
 
 Chi tiết từng đoạn sửa: [integration/hicas-bimcad/patches.md](integration/hicas-bimcad/patches.md).
+Khác với đề xuất: Phase 5.4 vẫn giữ cách cũ (dump read-only qua MCP riêng của add-in) cho dự án chưa dùng HicasTest,
+và MCP `hicas-test` không tự đăng ký — dùng `install.ps1 -RegisterMcp` hoặc mẫu `extras/hicas-test.mcp.json` của plugin.
 
 ---
 

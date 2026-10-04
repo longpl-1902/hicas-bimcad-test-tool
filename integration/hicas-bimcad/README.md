@@ -1,7 +1,10 @@
 # Integration with the hicas-bimcad plugin
 
-The plugin lives in `longpl-1902/hicas-bim-cad-skills` (marketplace `hicas-skills`). This folder holds
-**proposed** changes for that repo — review here, then copy them over. Nothing in the plugin is changed yet.
+The plugin lives in `longpl-1902/hicas-bim-cad-skills` (marketplace `hicas-skills`).
+
+> **Applied in hicas-bimcad 1.1.0** (commit `cc641a7`). The plugin repo is now the source of truth for these skills;
+> this folder is kept as the original proposal. Differences from it: Phase 5.4 keeps the old read-only bridge path for
+> projects without HicasTest, and the MCP server is not auto-registered (sample `extras/hicas-test.mcp.json`).
 
 ## Where the tool fits today
 
