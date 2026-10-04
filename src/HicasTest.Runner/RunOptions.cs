@@ -37,7 +37,12 @@ public sealed class RunOptions
         if (!string.IsNullOrWhiteSpace(MachineConfig.Current.BridgesDir))
             return MachineConfig.Current.BridgesDir!;
 
-        var packaged = Path.Combine(AppContext.BaseDirectory, "bridges");
-        return Directory.Exists(packaged) ? packaged : Path.Combine(Environment.CurrentDirectory, "artifacts", "bridges");
+        // Package layout: <root>\hicastest.exe, <root>\bridges\, <root>\mcp\hicastest-mcp.exe.
+        foreach (var candidate in new[] { Path.Combine(AppContext.BaseDirectory, "bridges"), Path.Combine(AppContext.BaseDirectory, "..", "bridges") })
+        {
+            if (Directory.Exists(candidate))
+                return Path.GetFullPath(candidate);
+        }
+        return Path.Combine(Environment.CurrentDirectory, "artifacts", "bridges");
     }
 }

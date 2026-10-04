@@ -27,6 +27,11 @@ if (-not (Test-Path (Join-Path $source 'hicastest.exe'))) {
 
 Write-Host "Installing to $Destination" -ForegroundColor Cyan
 if ((Resolve-Path $source).Path -ne $Destination) {
+    # Upgrade = replace: stale files from an older layout (e.g. hicastest-mcp.exe in the root) must not survive.
+    # Only a folder that already holds a HicasTest install is removed.
+    if (Test-Path (Join-Path $Destination 'hicastest.exe')) {
+        Remove-Item $Destination -Recurse -Force
+    }
     New-Item -ItemType Directory -Force $Destination | Out-Null
     Copy-Item (Join-Path $source '*') $Destination -Recurse -Force
 }
@@ -50,9 +55,11 @@ if (-not (Test-Path $config)) {
 
 & (Join-Path $Destination 'hicastest.exe') hosts
 
-$mcp = Join-Path $Destination 'hicastest-mcp.exe'
+$mcp = Join-Path $Destination 'mcp\hicastest-mcp.exe'
 $command = "claude mcp add --scope user hicas-test -- `"$mcp`""
 if ($RegisterMcp -and (Get-Command claude -ErrorAction SilentlyContinue)) {
+    # Re-register so an upgrade picks up a new path.
+    claude mcp remove --scope user hicas-test 2>$null | Out-Null
     Invoke-Expression $command
     Write-Host "Registered MCP server 'hicas-test' for Claude Code." -ForegroundColor Green
 } else {

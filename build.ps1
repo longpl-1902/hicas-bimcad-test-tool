@@ -52,8 +52,11 @@ $version = ([xml](Get-Content (Join-Path $root 'Directory.Build.props'))).Projec
 $pkg = Join-Path $root 'artifacts\package\HicasTest'
 if (Test-Path $pkg) { Remove-Item $pkg -Recurse -Force }
 
-foreach ($p in 'src\HicasTest.Cli\HicasTest.Cli.csproj', 'src\HicasTest.Mcp\HicasTest.Mcp.csproj') {
-    dotnet publish (Join-Path $root $p) -c Release -r win-x64 --self-contained -o $pkg
+# Separate folders: the MCP server pulls newer System.Text.Json / Microsoft.Extensions.* than the CLI's runtime,
+# and publishing both into one folder overwrites one app's dependencies with the other's.
+$publish = @{ 'src\HicasTest.Cli\HicasTest.Cli.csproj' = $pkg; 'src\HicasTest.Mcp\HicasTest.Mcp.csproj' = (Join-Path $pkg 'mcp') }
+foreach ($p in $publish.Keys) {
+    dotnet publish (Join-Path $root $p) -c Release -r win-x64 --self-contained -o $publish[$p]
     if ($LASTEXITCODE -ne 0) { throw "publish $p failed" }
 }
 

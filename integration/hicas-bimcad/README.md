@@ -29,7 +29,7 @@ The plugin lives in `longpl-1902/hicas-bim-cad-skills` (marketplace `hicas-skill
 4. **Plugin `.mcp.json`** — register the server so every teammate gets the tools with the plugin:
 
    ```json
-   { "mcpServers": { "hicas-test": { "command": "${LOCALAPPDATA}/Programs/HicasTest/hicastest-mcp.exe" } } }
+   { "mcpServers": { "hicas-test": { "command": "${LOCALAPPDATA}/Programs/HicasTest/mcp/hicastest-mcp.exe" } } }
    ```
    (or keep per-user registration via `install.ps1 -RegisterMcp`).
 

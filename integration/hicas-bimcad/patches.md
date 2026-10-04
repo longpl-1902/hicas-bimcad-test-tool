@@ -74,7 +74,7 @@ Add: "A HicasTest `MATCH` is machine evidence, not a Pass. A level-B case marked
 ## 8. Plugin `.mcp.json` (new)
 
 ```json
-{ "mcpServers": { "hicas-test": { "command": "${LOCALAPPDATA}/Programs/HicasTest/hicastest-mcp.exe" } } }
+{ "mcpServers": { "hicas-test": { "command": "${LOCALAPPDATA}/Programs/HicasTest/mcp/hicastest-mcp.exe" } } }
 ```
 
 Check that the marketplace expands `${LOCALAPPDATA}` on Windows; otherwise keep `install.ps1 -RegisterMcp`.
