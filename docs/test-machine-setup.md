@@ -1,0 +1,67 @@
+# Test machine setup
+
+The tool drives real, licensed Revit / AutoCAD on Windows. Standard cloud CI cannot run it;
+use a dev PC or a self-hosted Windows runner signed in with an Autodesk licence.
+
+## Once per machine
+
+1. Install the host years you test. Supported: Revit and AutoCAD 2021–2027. `hicastest hosts` shows
+   which are installed and which bridges are built.
+2. .NET SDK 10 (builds every year, including 2027 / net10) — `dotnet --list-sdks`.
+3. Git LFS (`git lfs install`) for the fixture models.
+4. Start each host once by hand: accept the licence, dismiss "What's new" / home-screen prompts.
+   The tool answers add-in security prompts with **Load once** and never changes trust settings.
+5. **Disable installed copies of the add-ins you test.** If the product version of an add-in is installed
+   in `%APPDATA%` or `%PROGRAMDATA%\Autodesk\Revit\Addins\<year>`, the runner refuses to start
+   (same AddInId would load the wrong build).
+6. AutoCAD: optionally add `artifacts\bridges\autocad\<year>` and the lane build folders to `TRUSTEDPATHS`
+   in a dedicated test profile to avoid the security prompt. Do this by hand; the tool does not change it.
+
+## Build
+
+```powershell
+./build.ps1
+```
+
+Bridges land in `artifacts\bridges\<revit|autocad>\<year>\`. Point the runner elsewhere with
+`--bridges <dir>` or the `HICASTEST_BRIDGES` environment variable.
+
+## Run
+
+```powershell
+dotnet run --project src/HicasTest.Cli -- validate examples
+dotnet run --project src/HicasTest.Cli -- run <lane>/.harness/features/<id>/b-cases `
+    --out <lane>/.harness/features/<id>/evidence/host `
+    --ledger <lane>/.harness/features/<id>/b-auto-ledger.csv --repeat 2
+```
+
+Do not use the machine while a run is in progress: the dialog driver clicks windows of the host process.
+
+## Hooking into hicas-bimcad
+
+In the add-in repo's `.harness/addin-story.json` set:
+
+```json
+"automationBridge": "MCP server 'hicas-test' (validate_test_case, run_test_case, list_bridges, query_elements)"
+```
+
+and register the MCP server for Claude Code (adjust the path):
+
+```json
+{
+  "mcpServers": {
+    "hicas-test": {
+      "command": "D:/hicas-tools/bimcad-test-tool/src/HicasTest.Mcp/bin/Release/net8.0-windows/hicastest-mcp.exe",
+      "env": { "HICASTEST_BRIDGES": "D:/hicas-tools/bimcad-test-tool/artifacts/bridges" }
+    }
+  }
+}
+```
+
+The plugin's rule still holds: results are `Chờ xác nhận — có bằng chứng máy` until a human confirms.
+
+## Troubleshooting
+
+- Bridge log: `%LOCALAPPDATA%\HicasTest\logs\bridge-<pid>.log`
+- Running bridges: `hicastest bridges`
+- Startup timeout → the host showed a dialog nobody answered; watch the screen during the first run.

@@ -1,0 +1,37 @@
+# Example only — replace the add-in, command and fixture with a real lane's values.
+id: EXAMPLE-ACAD-AC-03
+ticket: "0000"
+case: AC-03
+level: B
+autoPassEligible: false
+source: qa-handover.md#AC-03
+
+host:
+  app: autocad
+  version: 2024
+
+addin:
+  assembly: ../../my-addin/src/MyAddin/bin/Debug/MyAddin.dll
+
+model: ../fixtures/autocad/basic.dwg
+
+run:
+  mode: commandline
+  # Extra tokens answer the command's prompts in order.
+  command: "HC_INSERTTAGS ALL"
+  timeoutSec: 120
+
+expect:
+  - kind: added
+    category: INSERT
+    count: 12
+    source: "ticket #0000 AC-03: one tag per equipment block (12 in fixture)"
+  - kind: param
+    category: INSERT
+    scope: changed
+    param: Layer
+    equals: "HC-TAG"
+    source: "ticket #0000 AC-03: tags on layer HC-TAG"
+
+evidence:
+  image: false   # not implemented for AutoCAD yet

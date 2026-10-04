@@ -1,0 +1,34 @@
+<Project>
+
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Company>HICAS</Company>
+    <Product>HICAS BIM/CAD test tool</Product>
+    <Version>0.1.0</Version>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <!--
+    Host bridges build once per host version, selected by a property:
+      dotnet build src/HicasTest.Bridge.Revit   -p:RevitVersion=2026
+      dotnet build src/HicasTest.Bridge.AutoCAD -p:AutoCADVersion=2025
+    Each version gets its own obj/bin so restores of different API packages never collide.
+  -->
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'HicasTest.Bridge.Revit'">
+    <RevitVersion Condition="'$(RevitVersion)' == ''">2024</RevitVersion>
+    <HostTag>R$(RevitVersion)</HostTag>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'HicasTest.Bridge.AutoCAD'">
+    <AutoCADVersion Condition="'$(AutoCADVersion)' == ''">2024</AutoCADVersion>
+    <HostTag>A$(AutoCADVersion)</HostTag>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(HostTag)' != ''">
+    <BaseIntermediateOutputPath>obj\$(HostTag)\</BaseIntermediateOutputPath>
+    <BaseOutputPath>bin\$(HostTag)\</BaseOutputPath>
+    <!-- Other versions' generated sources live in sibling obj\<tag> folders; never compile them. -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);obj\**;bin\**</DefaultItemExcludes>
+  </PropertyGroup>
+
+</Project>

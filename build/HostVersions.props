@@ -1,0 +1,54 @@
+<Project>
+
+  <!--
+    Single source of truth for supported host versions.
+    Revit and AutoCAD move runtimes in the same years:
+      2021–2024 → .NET Framework 4.8 · 2025–2026 → .NET 8 · 2027 → .NET 10
+    API reference packages are pinned per year: some published versions declare the wrong
+    target framework (e.g. Nice3point 2022.1.80 → net8.0, AutoCAD.NET 25.0.2 → net10.0).
+    To add a year: add a row here, add it to build.ps1 and HostCatalog.cs.
+  -->
+
+  <!-- ===== Revit ===== -->
+  <PropertyGroup Condition="'$(RevitVersion)' != ''">
+    <HostFramework Condition="'$(RevitVersion)' &lt;= '2024'">net48</HostFramework>
+    <HostFramework Condition="'$(RevitVersion)' &gt;= '2025' And '$(RevitVersion)' &lt;= '2026'">net8.0-windows</HostFramework>
+    <HostFramework Condition="'$(RevitVersion)' &gt;= '2027'">net10.0-windows</HostFramework>
+
+    <RevitApiVersion Condition="'$(RevitVersion)' == '2021'">2021.1.100</RevitApiVersion>
+    <RevitApiVersion Condition="'$(RevitVersion)' == '2022'">2022.1.21</RevitApiVersion>
+    <RevitApiVersion Condition="'$(RevitVersion)' == '2023'">2023.1.90</RevitApiVersion>
+    <RevitApiVersion Condition="'$(RevitVersion)' == '2024'">2024.3.60</RevitApiVersion>
+    <RevitApiVersion Condition="'$(RevitVersion)' == '2025'">2025.4.60</RevitApiVersion>
+    <RevitApiVersion Condition="'$(RevitVersion)' == '2026'">2026.4.10</RevitApiVersion>
+    <RevitApiVersion Condition="'$(RevitVersion)' == '2027'">2027.3.0</RevitApiVersion>
+
+    <!-- REVIT2024_OR_GREATER style symbols for API differences between years. -->
+    <DefineConstants>$(DefineConstants);REVIT$(RevitVersion)</DefineConstants>
+    <DefineConstants Condition="'$(RevitVersion)' &gt;= '2022'">$(DefineConstants);REVIT2022_OR_GREATER</DefineConstants>
+    <DefineConstants Condition="'$(RevitVersion)' &gt;= '2023'">$(DefineConstants);REVIT2023_OR_GREATER</DefineConstants>
+    <DefineConstants Condition="'$(RevitVersion)' &gt;= '2024'">$(DefineConstants);REVIT2024_OR_GREATER</DefineConstants>
+    <DefineConstants Condition="'$(RevitVersion)' &gt;= '2025'">$(DefineConstants);REVIT2025_OR_GREATER</DefineConstants>
+    <DefineConstants Condition="'$(RevitVersion)' &gt;= '2026'">$(DefineConstants);REVIT2026_OR_GREATER</DefineConstants>
+    <DefineConstants Condition="'$(RevitVersion)' &gt;= '2027'">$(DefineConstants);REVIT2027_OR_GREATER</DefineConstants>
+  </PropertyGroup>
+
+  <!-- ===== AutoCAD ===== -->
+  <PropertyGroup Condition="'$(AutoCADVersion)' != ''">
+    <HostFramework Condition="'$(AutoCADVersion)' &lt;= '2024'">net48</HostFramework>
+    <HostFramework Condition="'$(AutoCADVersion)' &gt;= '2025' And '$(AutoCADVersion)' &lt;= '2026'">net8.0-windows</HostFramework>
+    <HostFramework Condition="'$(AutoCADVersion)' &gt;= '2027'">net10.0-windows</HostFramework>
+
+    <AutoCADNetVersion Condition="'$(AutoCADVersion)' == '2021'">24.0.0</AutoCADNetVersion>
+    <AutoCADNetVersion Condition="'$(AutoCADVersion)' == '2022'">24.1.51000</AutoCADNetVersion>
+    <AutoCADNetVersion Condition="'$(AutoCADVersion)' == '2023'">24.2.0</AutoCADNetVersion>
+    <AutoCADNetVersion Condition="'$(AutoCADVersion)' == '2024'">24.3.0</AutoCADNetVersion>
+    <AutoCADNetVersion Condition="'$(AutoCADVersion)' == '2025'">25.0.1</AutoCADNetVersion>
+    <AutoCADNetVersion Condition="'$(AutoCADVersion)' == '2026'">25.1.0</AutoCADNetVersion>
+    <AutoCADNetVersion Condition="'$(AutoCADVersion)' == '2027'">26.0.0</AutoCADNetVersion>
+
+    <DefineConstants>$(DefineConstants);ACAD$(AutoCADVersion)</DefineConstants>
+    <DefineConstants Condition="'$(AutoCADVersion)' &gt;= '2025'">$(DefineConstants);ACAD2025_OR_GREATER</DefineConstants>
+  </PropertyGroup>
+
+</Project>

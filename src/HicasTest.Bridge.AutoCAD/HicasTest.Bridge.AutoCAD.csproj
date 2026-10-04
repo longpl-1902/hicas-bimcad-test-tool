@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Build one AutoCAD version at a time:  dotnet build -p:AutoCADVersion=2025
+    Supported: 2021–2027 (build\HostVersions.props). Default 2024. Output: bin\A<ver>\<Configuration>\
+  -->
+  <Import Project="..\..\build\HostVersions.props" />
+
+  <PropertyGroup>
+    <TargetFramework>$(HostFramework)</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Autodesk's official API reference packages (there is no Nice3point equivalent for AutoCAD).
+         AutoCAD provides the real assemblies at runtime. -->
+    <PackageReference Include="AutoCAD.NET" Version="$(AutoCADNetVersion)" ExcludeAssets="runtime" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HicasTest.Bridge.Core\HicasTest.Bridge.Core.csproj" />
+  </ItemGroup>
+
+  <Target Name="CheckAutoCADVersion" BeforeTargets="Restore;CollectPackageReferences;Build">
+    <Error Condition="'$(AutoCADNetVersion)' == ''" Text="AutoCAD $(AutoCADVersion) is not supported. Supported: 2021–2027 (build\HostVersions.props)." />
+  </Target>
+
+</Project>

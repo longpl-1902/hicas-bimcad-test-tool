@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Build one Revit version at a time:  dotnet build -p:RevitVersion=2026
+    Supported: 2021–2027 (build\HostVersions.props). Default 2024. Output: bin\R<ver>\<Configuration>\
+  -->
+  <Import Project="..\..\build\HostVersions.props" />
+
+  <PropertyGroup>
+    <TargetFramework>$(HostFramework)</TargetFramework>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- API references only; Revit provides the real assemblies at runtime. -->
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="$(RevitApiVersion)" ExcludeAssets="runtime" PrivateAssets="all" />
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="$(RevitApiVersion)" ExcludeAssets="runtime" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HicasTest.Bridge.Core\HicasTest.Bridge.Core.csproj" />
+  </ItemGroup>
+
+  <Target Name="CheckRevitVersion" BeforeTargets="Restore;CollectPackageReferences;Build">
+    <Error Condition="'$(RevitApiVersion)' == ''" Text="Revit $(RevitVersion) is not supported. Supported: 2021–2027 (build\HostVersions.props)." />
+  </Target>
+
+</Project>

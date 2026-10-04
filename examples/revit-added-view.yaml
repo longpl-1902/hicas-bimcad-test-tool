@@ -1,0 +1,41 @@
+# Example only — replace the add-in, command and fixture with a real lane's values.
+id: EXAMPLE-REVIT-AC-02
+ticket: "0000"
+case: AC-02
+level: B
+autoPassEligible: false
+source: qa-handover.md#AC-02
+
+host:
+  app: revit
+  version: 2024
+
+addin:
+  manifest: ../../my-addin/src/MyAddin/bin/Debug/MyAddin.addin
+
+model: ../fixtures/revit/basic.rvt
+
+run:
+  mode: postcommand
+  command: "CustomCtrl_%CustomCtrl_%MyTab%MyPanel%CreateKeyplan"
+  timeoutSec: 300
+
+dialogs:
+  - match: "Keyplan options"
+    answer: "OK"
+
+expect:
+  - kind: added
+    category: OST_Views
+    count: 1
+    source: "ticket #0000 AC-02: one keyplan view per run"
+  - kind: param
+    category: OST_Views
+    scope: changed
+    param: "View Scale"
+    equals: "100"
+    source: "ticket #0000 AC-02: scale 1:100"
+  - kind: no-warnings
+
+evidence:
+  image: true

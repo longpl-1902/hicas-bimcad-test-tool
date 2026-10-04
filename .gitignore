@@ -1,0 +1,14 @@
+bin/
+obj/
+artifacts/
+out/
+TestResults/
+.vs/
+.idea/
+*.user
+*.suo
+*.rvt.bak
+*.000*.rvt
+*.bak
+*.dwl
+*.dwl2
