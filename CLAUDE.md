@@ -40,3 +40,9 @@ Tool that runs hicas-bimcad level-B test cases inside real Revit / AutoCAD. Read
 dotnet build src/HicasTest.Bridge.Revit -p:RevitVersion=2026      # one version
 dotnet test tests/HicasTest.Runner.Tests
 ```
+
+## CI/CD
+
+`.github/workflows/ci.yml` (windows-latest): `build.ps1 -Package -Version <v>`, unit tests, `build/smoke-test.ps1`
+on the zip. Tags `v*` create a GitHub Release. If you change the package layout, the publish step or the MCP tool
+set, update `build/smoke-test.ps1` too and run it locally before pushing.

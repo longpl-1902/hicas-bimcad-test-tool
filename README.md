@@ -1,5 +1,8 @@
 # HicasTest — tool test add-in Revit / AutoCAD
 
+[![CI](https://github.com/longpl-1902/hicas-bimcad-test-tool/actions/workflows/ci.yml/badge.svg)](https://github.com/longpl-1902/hicas-bimcad-test-tool/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/longpl-1902/hicas-bimcad-test-tool?include_prereleases)](https://github.com/longpl-1902/hicas-bimcad-test-tool/releases)
+
 HicasTest giúp **tự động hoá các case test cấp B** của plugin hicas-bimcad (những case trước đây phải có người
 mở Revit/AutoCAD để test tay), và cho **QA nhờ Claude điều khiển Revit/AutoCAD test từng bước, có ảnh chụp**.
 
@@ -150,7 +153,8 @@ Giới hạn hiện tại: chưa hỗ trợ pick phần tử/điểm trong view;
 Yêu cầu: Windows, Revit và/hoặc AutoCAD đã cài và đã có license, Claude Code (nếu dùng qua Claude).
 Không cần cài .NET (gói là self-contained).
 
-1. Lấy file `HicasTest-<version>-win-x64.zip` (từ người build, hoặc GitHub Releases khi có), giải nén.
+1. Tải `HicasTest-<version>-win-x64.zip` ở [GitHub Releases](https://github.com/longpl-1902/hicas-bimcad-test-tool/releases)
+   (kiểm tra bằng file `.sha256` đi kèm nếu cần), giải nén.
 2. Mở PowerShell trong thư mục giải nén:
 
    ```powershell
@@ -185,10 +189,29 @@ cd hicas-bimcad-test-tool
 ./build.ps1                     # build bridge 2021–2027 cho cả Revit và AutoCAD + runner + test
 ./build.ps1 -Package            # thêm: tạo zip self-contained để gửi cho QA
 dotnet test tests/HicasTest.Runner.Tests
+./build/smoke-test.ps1 -Zip artifacts/HicasTest-<version>-win-x64.zip   # kiểm gói cài, không cần Revit/AutoCAD
 ```
 
 Build một năm: `dotnet build src/HicasTest.Bridge.Revit -p:RevitVersion=2026`.
 Build không cần cài host (API lấy từ NuGet).
+
+### CI/CD và phát hành
+
+GitHub Actions ([.github/workflows/ci.yml](.github/workflows/ci.yml)), chạy trên `windows-latest`:
+
+| Khi nào | Làm gì |
+|---|---|
+| Push lên `main`, PR | Build 14 bridge + CLI + MCP, unit test, đóng gói (`<version>-ci.<số lần chạy>`), smoke test gói (layout, `hosts`, `validate`, bắt tay MCP + `tools/list`), lưu zip làm artifact 14 ngày |
+| Gắn tag `v*` | Như trên với version lấy từ tag, rồi tạo **GitHub Release** kèm zip + `.sha256` (tag có `-`, vd `v0.2.0-rc.1`, là pre-release) |
+
+Phát hành bản mới:
+
+```powershell
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+CI không chạy test trong Revit/AutoCAD thật (cần license); phần đó sẽ dùng runner self-hosted trên máy test.
 
 ---
 
@@ -257,7 +280,8 @@ và MCP `hicas-test` không tự đăng ký — dùng `install.ps1 -RegisterMcp`
   mở model từ bridge, `SendStringToExecute` của AutoCAD, các hộp thoại lúc khởi động của từng năm.
 - Chưa pick phần tử/điểm trong view; AutoCAD chưa export ảnh view.
 - Revit 2019–2020 chưa hỗ trợ (API đơn vị khác).
-- Chưa có CI: cần máy Windows self-hosted có license Autodesk.
+- CI chỉ build/test/đóng gói; test trong host thật cần runner Windows self-hosted có license Autodesk.
+- Bridge DLL chưa được ký số (Revit hỏi "unsigned add-in", tool trả lời "Load once"); cần chứng chỉ ký code.
 
 ## 8. Đóng góp ý tưởng
 
@@ -266,7 +290,7 @@ Mở issue hoặc ghi chú vào PR với: vấn đề gặp phải, case cụ th
 1. Story nào làm pilot cho đợt đo độ chính xác đầu tiên?
 2. Fixture chung để ở đâu (repo này hay từng repo add-in)?
 3. Có cần hỗ trợ Revit 2019–2020 không?
-4. Có nên phát hành zip qua GitHub Releases cho QA tự tải?
+4. Khi nào dựng runner self-hosted trên máy test để chạy test trong host thật theo lịch?
 
 Tài liệu thêm: [docs/architecture.md](docs/architecture.md) · [docs/test-case-format.md](docs/test-case-format.md) ·
 [docs/accuracy-study.md](docs/accuracy-study.md) · [docs/test-machine-setup.md](docs/test-machine-setup.md) ·

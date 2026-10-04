@@ -1,0 +1,101 @@
+name: CI
+
+# Push / PR: build every bridge (Revit + AutoCAD 2021–2027), run host-free tests, package, smoke-test the package.
+# Tag v*: same, then publish a GitHub Release with the zip and its SHA-256.
+# Revit/AutoCAD are not needed to build (API references come from NuGet). Tests inside real hosts need a
+# licensed machine and are not part of this workflow.
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          # 10 builds every year (2027 = net10); the test project runs on the .NET 8 runtime.
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'build/HostVersions.props', 'Directory.Build.props') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: Version
+        id: version
+        run: |
+          if ($env:GITHUB_REF_TYPE -eq 'tag') {
+            $v = $env:GITHUB_REF_NAME -replace '^v', ''
+          } else {
+            $base = ([xml](Get-Content Directory.Build.props)).Project.PropertyGroup[0].Version
+            $v = "$base-ci.$env:GITHUB_RUN_NUMBER"
+          }
+          "value=$v" >> $env:GITHUB_OUTPUT
+          Write-Host "Version $v"
+
+      - name: Build and package
+        run: ./build.ps1 -Package -Version ${{ steps.version.outputs.value }}
+
+      - name: Unit tests
+        run: dotnet test tests/HicasTest.Runner.Tests -c Release --no-build --logger "trx;LogFileName=tests.trx" --results-directory artifacts/test-results
+
+      - name: Smoke test package
+        run: ./build/smoke-test.ps1 -Zip artifacts/HicasTest-${{ steps.version.outputs.value }}-win-x64.zip
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: HicasTest-${{ steps.version.outputs.value }}
+          path: |
+            artifacts/HicasTest-*.zip
+            artifacts/HicasTest-*.zip.sha256
+            artifacts/test-results/
+          retention-days: 14
+          if-no-files-found: warn
+
+    outputs:
+      version: ${{ steps.version.outputs.value }}
+
+  release:
+    if: github.ref_type == 'tag'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: HicasTest-${{ needs.build.outputs.version }}
+          path: dist
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          prerelease=""
+          case "$VERSION" in *-*) prerelease="--prerelease" ;; esac
+          gh release create "$TAG" dist/HicasTest-*.zip dist/HicasTest-*.zip.sha256 \
+            --repo "$GITHUB_REPOSITORY" --title "HicasTest $VERSION" --generate-notes $prerelease
