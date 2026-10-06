@@ -29,6 +29,7 @@ public static class QaSessionTools
         string? fullClassName = null,
         string? addinId = null,
         [Description("Where sessions/<id>/ (screenshots + report.md) are written. Default: config outputDir or ./out.")] string? outputDir = null,
+        [Description("The add-in's test assembly (<Addin>.Testing.dll) for the entry tools.")] string? testAssembly = null,
         CancellationToken ct = default)
     {
         var spec = new TestCase
@@ -36,6 +37,7 @@ public static class QaSessionTools
             Id = "qa-session",
             Host = new HostSpec { App = app.Trim().ToLowerInvariant(), Version = version },
             Model = Path.GetFullPath(model),
+            Run = { Assembly = string.IsNullOrWhiteSpace(testAssembly) ? null : Path.GetFullPath(testAssembly) },
             Addin = addinManifest == null && addinAssembly == null ? null : new AddinSpec
             {
                 Manifest = addinManifest == null ? null : Path.GetFullPath(addinManifest),
@@ -158,6 +160,18 @@ public static class QaSessionTools
         SessionRegistry.All() is { Count: > 0 } all
             ? string.Join("\n", all.Select(s => $"{s.Id}: {s.Title} â€” {s.Spec.Host.App} {s.Spec.Host.Version}, pid {s.Pid}, {s.Steps.Count} steps"))
             : "No open session.";
+
+    [McpServerTool(Name = "qa_session_list_entries"), Description("List the add-in's test entries (name, main/step, read-only, contract file).")]
+    public static Task<string> ListEntries(string sessionId, string? assembly = null, CancellationToken ct = default) =>
+        ToolErrors.Surface(async () => Describe(await SessionRegistry.Get(sessionId).ListEntriesAsync(assembly, ct)));
+
+    [McpServerTool(Name = "qa_session_call_entry"), Description(
+        "Call a test entry with recording: result JSON, prompts raised, model changes. 'argument' = the feature's request JSON; " +
+        "'answers' = 'promptId=option;promptId=option' (unanswered prompts take their default). Step entries (.validate/.plan) do not write.")]
+    public static Task<string> CallEntry(string sessionId, string name, string argument = "{}", string? answers = null,
+        string? assembly = null, CancellationToken ct = default) =>
+        ToolErrors.Surface(async () => Describe(await SessionRegistry.Get(sessionId).CallEntryAsync(assembly, name, argument,
+            ParseRules(answers).Select(r => new PromptAnswerSpec { Id = r.Match, Option = r.Answer }), ct)));
 
     private static IEnumerable<DialogSpec> ParseRules(string? rules) =>
         (rules ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)

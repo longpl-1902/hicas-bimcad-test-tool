@@ -20,6 +20,26 @@ public sealed class DialogDriver : IDisposable
     private readonly CancellationTokenSource _cts = new();
     private volatile DialogSpec[] _rules = Array.Empty<DialogSpec>();
     private Task? _loop;
+    private readonly Dictionary<string, int> _unanswered = new();
+    private volatile string? _unexpected;
+
+    /// <summary>A modal window that stays up this many polls without a rule is "unexpected" (a hung host, not a progress bar).</summary>
+    private const int UnexpectedAfterPolls = 8;
+
+    /// <summary>
+    /// While set (during a test-entry call, where no dialog should appear), a modal window that no rule answers is
+    /// reported through <see cref="Unexpected"/> so the run can stop instead of waiting on a host nobody operates.
+    /// </summary>
+    public volatile bool Strict;
+
+    /// <summary>Title and buttons of the unexpected window, or null.</summary>
+    public string? Unexpected => _unexpected;
+
+    public void ClearUnexpected()
+    {
+        _unexpected = null;
+        _unanswered.Clear();
+    }
 
     /// <summary>Starts (or retargets) watching. Later calls replace the rule set.</summary>
     public void Watch(int pid, IEnumerable<DialogSpec> rules)
@@ -42,12 +62,17 @@ public sealed class DialogDriver : IDisposable
         {
             try
             {
+                var stillOpen = new HashSet<string>();
+                var mainBlocked = Strict && HostWindows.MainWindowDisabled(pid);
                 foreach (var host in HostWindows.List(pid, _automation))
                 {
                     if (host.IsMainWindow)
                         continue; // never click inside the main window
-                    TryAnswer(host.Window);
+                    if (!TryAnswer(host.Window) && mainBlocked)
+                        NoteUnanswered(host.Window, stillOpen);
                 }
+                foreach (var gone in _unanswered.Keys.Where(k => !stillOpen.Contains(k)).ToList())
+                    _unanswered.Remove(gone);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -65,7 +90,22 @@ public sealed class DialogDriver : IDisposable
         }
     }
 
-    private void TryAnswer(Window window)
+    private void NoteUnanswered(Window window, HashSet<string> stillOpen)
+    {
+        var title = Safe(() => window.Title) ?? "";
+        stillOpen.Add(title);
+        _unanswered[title] = _unanswered.GetValueOrDefault(title) + 1;
+        if (_unanswered[title] < UnexpectedAfterPolls || _unexpected != null)
+            return;
+
+        var buttons = window.FindAllDescendants()
+            .Where(e => HostWindows.IsButtonClass(Safe(() => e.ClassName)) || Safe(() => e.ControlType) is ControlType.Button)
+            .Select(e => Safe(() => e.Name)).Where(n => !string.IsNullOrWhiteSpace(n)).Distinct().Take(6);
+        _unexpected = $"\"{title}\" (buttons: {string.Join(", ", buttons)})";
+        _events.Enqueue(new DialogEvent { Source = "flaui", DialogId = title, Message = "unexpected dialog during a test entry", Handled = false });
+    }
+
+    private bool TryAnswer(Window window)
     {
         var title = window.Title ?? string.Empty;
         foreach (var rule in _rules)
@@ -89,8 +129,9 @@ public sealed class DialogDriver : IDisposable
                 Answer = rule.Answer,
                 Handled = handled,
             });
-            return;
+            return true;
         }
+        return false;
     }
 
     // Any element, not only Text: Revit's Win32 dialogs expose their labels as Pane/Edit.

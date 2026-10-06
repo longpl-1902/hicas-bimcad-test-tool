@@ -169,6 +169,17 @@ namespace HicasTest.Bridge.Revit
             return new ExportImageResult { Path = written?.FullName };
         }
 
+        public EntryListResult ListEntries(EntryListRequest request)
+        {
+            return EntryInvoker.List(request.AssemblyPath);
+        }
+
+        // Entries make their own transactions; an ExternalEvent context allows it.
+        public EntryCallResult CallEntry(EntryCallRequest request)
+        {
+            return EntryInvoker.Call(request, App);
+        }
+
         public void SetDialogRules(DialogRulesRequest request)
         {
             _rules = request.Rules ?? new List<DialogRule>();

@@ -72,6 +72,14 @@ namespace HicasTest.Bridge.Core
                 case Methods.TakeDialogEvents:
                     return await OnMainThread(() => _ops.TakeDialogEvents()).ConfigureAwait(false);
 
+                case Methods.EntriesList:
+                    var entryList = JsonCodec.Deserialize<EntryListRequest>(payload);
+                    return await OnMainThread(() => _ops.ListEntries(entryList)).ConfigureAwait(false);
+
+                case Methods.EntriesCall:
+                    var entryCall = JsonCodec.Deserialize<EntryCallRequest>(payload);
+                    return await OnMainThread(() => _ops.CallEntry(entryCall)).ConfigureAwait(false);
+
                 default:
                     throw new NotSupportedException("Unknown method '" + method + "'.");
             }

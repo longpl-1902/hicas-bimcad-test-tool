@@ -19,6 +19,7 @@ namespace HicasTest.Bridge.AutoCAD
             try
             {
                 _pid = Process.GetCurrentProcess().Id;
+                EntryInvoker.EnableTestMode();
                 var dispatcher = new AcadDispatcher();
                 var version = Convert.ToString(Application.GetSystemVariable("ACADVER"));
                 var ops = new AcadHostOperations(version, _pid);

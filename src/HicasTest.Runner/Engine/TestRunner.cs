@@ -64,24 +64,32 @@ public sealed class TestRunner(RunOptions options)
             dialogs.Watch(session.Process.Id, OpenModelDialogs.WithUi(testCase.Dialogs));
 
             await bridge.CallAsync<DocumentInfo>(Methods.OpenDocument, new OpenDocumentRequest { Path = model }, ct);
-            await bridge.CallAsync<Empty>(Methods.StartRecording, null, ct);
-            run.Command = await bridge.CallAsync<CommandResult>(Methods.RunCommand, ToRequest(testCase.Run), ct);
-            run.Changes = await bridge.CallAsync<ChangeSet>(Methods.StopRecording, null, ct);
-            run.Dialogs.AddRange((await bridge.CallAsync<DialogEventList>(Methods.TakeDialogEvents, null, ct)).Events);
-            run.Dialogs.AddRange(dialogs.TakeEvents());
-
-            for (var i = 0; i < testCase.Expect.Count; i++)
+            if (IsEntries(testCase))
             {
-                run.Assertions.Add(await AssertionEngine.EvaluateAsync(i, testCase.Expect[i], run.Changes, run.Command,
-                    q => bridge.CallAsync<QueryResult>(Methods.Query, q, ct)));
+                using var ui = new UiDriver(session.Process.Id);
+                await EntriesFlow.RunAsync(testCase, bridge, dialogs, ui, run, workDir, ct);
+            }
+            else
+            {
+                await bridge.CallAsync<Empty>(Methods.StartRecording, null, ct);
+                run.Command = await bridge.CallAsync<CommandResult>(Methods.RunCommand, ToRequest(testCase.Run), ct);
+                run.Changes = await bridge.CallAsync<ChangeSet>(Methods.StopRecording, null, ct);
+                run.Dialogs.AddRange((await bridge.CallAsync<DialogEventList>(Methods.TakeDialogEvents, null, ct)).Events);
+                run.Dialogs.AddRange(dialogs.TakeEvents());
+
+                for (var i = 0; i < testCase.Expect.Count; i++)
+                {
+                    run.Assertions.Add(await AssertionEngine.EvaluateAsync(i, testCase.Expect[i], run.Changes, run.Command,
+                        q => bridge.CallAsync<QueryResult>(Methods.Query, q, ct)));
+                }
             }
 
-            if (run.Command.Status != "completed")
+            if (run.Command!.Status != "completed")
                 run.Notes.Add($"Command ended as '{run.Command.Status}': {run.Command.Message}");
             if (run.Dialogs.Any(d => !d.Handled))
                 run.Notes.Add("Some dialogs had no matching rule; see the dialog list.");
 
-            if (testCase.Evidence.Image)
+            if (testCase.Evidence.Image ?? !IsEntries(testCase))
             {
                 try
                 {
@@ -106,6 +114,8 @@ public sealed class TestRunner(RunOptions options)
         run.Duration = watch.Elapsed;
         return run;
     }
+
+    internal static bool IsEntries(TestCase testCase) => testCase.Run.Mode.Equals("entries", StringComparison.OrdinalIgnoreCase);
 
     private static RunCommandRequest ToRequest(RunSpec spec) => new()
     {

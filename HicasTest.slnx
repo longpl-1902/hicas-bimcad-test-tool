@@ -3,11 +3,13 @@
     <File Path="docs/accuracy-study.md" />
     <File Path="docs/architecture.md" />
     <File Path="docs/test-case-format.md" />
+    <File Path="docs/test-entries.md" />
     <File Path="docs/test-machine-setup.md" />
     <File Path="README.md" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/HicasTest.Protocol/HicasTest.Protocol.csproj" />
+    <Project Path="src/HicasTest.Contracts/HicasTest.Contracts.csproj" />
     <Project Path="src/HicasTest.Bridge.Core/HicasTest.Bridge.Core.csproj" />
     <Project Path="src/HicasTest.Bridge.Revit/HicasTest.Bridge.Revit.csproj" />
     <Project Path="src/HicasTest.Bridge.AutoCAD/HicasTest.Bridge.AutoCAD.csproj" />

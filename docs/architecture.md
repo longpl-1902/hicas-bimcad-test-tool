@@ -102,6 +102,15 @@ and pressed with `WM_COMMAND` (Win32) or Invoke / LegacyIAccessible, falling bac
 | `commandline` | AutoCAD | `SendStringToExecute`, finished on `CommandEnded/Cancelled/Failed` of that command; extra tokens answer prompts | Testing the real command |
 | `invoke` | both | Reflection call of a public static method `(UIApplication|Document host, string argument) → string` in the add-in | The command is blocked by UI; call the use case behind it |
 
+## Test entries (logic and flow, no UI)
+
+`run.mode: entries` and the MCP tools `list_entries` / `call_entry` call public static methods of the add-in's test
+assembly through two bridge methods (`entries.list`, `entries.call`). The bridge finds them by the full name of
+`HicasTest.Contracts.HicasTestEntryAttribute` and brackets each call with `TestContext.Begin/End` (reflection, so it does
+not depend on the add-in's copy of Contracts) to script and record the feature's prompts. The runner records changes per
+call, merges them with `ChangeLog` semantics, and watches the host from outside (`DialogDriver` strict mode): a modal
+window that stays up ends the case as ERROR. Design and rules: [test-entries.md](test-entries.md).
+
 ## QA sessions (interactive)
 
 `HicasTest.Runner.Sessions.QaSession`, exposed as MCP `qa_session_*` tools. One host process per session on a

@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\HicasTest.Runner\HicasTest.Runner.csproj" />
+    <ProjectReference Include="..\..\src\HicasTest.Contracts\HicasTest.Contracts.csproj" />
   </ItemGroup>
 
   <ItemGroup>

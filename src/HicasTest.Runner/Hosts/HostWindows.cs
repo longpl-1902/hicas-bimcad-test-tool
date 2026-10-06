@@ -88,6 +88,13 @@ internal static class HostWindows
     /// <summary>UI Automation call timed out: the host's UI thread is busy, not gone.</summary>
     internal static bool IsTimeout(Exception ex) => ex is TimeoutException || ex.HResult == CorETimeout;
 
+    /// <summary>The main window is disabled while a modal dialog of the process is open (Win32 only, no UI Automation).</summary>
+    public static bool MainWindowDisabled(int pid)
+    {
+        var main = MainWindowHandle(pid);
+        return main != IntPtr.Zero && !IsWindowEnabled(main);
+    }
+
     private static IntPtr MainWindowHandle(int pid)
     {
         try
@@ -145,6 +152,9 @@ internal static class HostWindows
 
     [DllImport("user32.dll")]
     private static extern bool IsWindowVisible(IntPtr handle);
+
+    [DllImport("user32.dll")]
+    private static extern bool IsWindowEnabled(IntPtr handle);
 
     [DllImport("user32.dll")]
     private static extern IntPtr GetWindow(IntPtr handle, uint command);

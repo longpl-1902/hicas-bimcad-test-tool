@@ -19,6 +19,7 @@ namespace HicasTest.Bridge.Revit
             try
             {
                 _pid = Process.GetCurrentProcess().Id;
+                EntryInvoker.EnableTestMode();
                 var dispatcher = new RevitDispatcher();
                 var ops = new RevitHostOperations(dispatcher, application.ControlledApplication.VersionNumber, _pid);
 

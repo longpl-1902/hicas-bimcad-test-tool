@@ -21,6 +21,10 @@ public sealed class TestCase
     public string Model { get; set; } = "";
     public RunSpec Run { get; set; } = new();
     public List<DialogSpec> Dialogs { get; set; } = new();
+
+    /// <summary>run.mode entries: test-entry calls, in order, in one host session (docs/test-entries.md).</summary>
+    public List<CallSpec> Calls { get; set; } = new();
+
     public List<Expectation> Expect { get; set; } = new();
     public EvidenceSpec Evidence { get; set; } = new();
 
@@ -50,7 +54,7 @@ public sealed class AddinSpec
 
 public sealed class RunSpec
 {
-    /// <summary>"postcommand" (Revit), "commandline" (AutoCAD) or "invoke".</summary>
+    /// <summary>"postcommand" (Revit), "commandline" (AutoCAD), "invoke" or "entries" (assembly = the add-in test assembly).</summary>
     public string Mode { get; set; } = "";
     public string? Command { get; set; }
     public string? Assembly { get; set; }
@@ -101,5 +105,6 @@ public sealed class FilterSpec
 
 public sealed class EvidenceSpec
 {
-    public bool Image { get; set; } = true;
+    /// <summary>Export the active view at the end. Default: yes, except for run.mode entries (headless).</summary>
+    public bool? Image { get; set; }
 }

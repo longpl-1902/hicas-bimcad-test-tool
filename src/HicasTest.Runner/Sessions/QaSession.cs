@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text;
 using HicasTest.Protocol;
 using HicasTest.Runner.Bridge;
+using HicasTest.Runner.Engine;
 using HicasTest.Runner.Hosts;
 using HicasTest.Runner.Model;
 
@@ -178,6 +179,41 @@ public sealed class QaSession : IAsyncDisposable
         }, screenshot: false);
 
     public string DescribeUi(string? window, string? text) => _ui.Describe(window, text);
+
+    /// <summary>Test entries of the add-in's test assembly (default: the one given at session start).</summary>
+    public Task<SessionStep> ListEntriesAsync(string? assembly, CancellationToken ct) =>
+        StepAsync("list entries", async step =>
+        {
+            RequireIdle("list entries");
+            var list = await _host.Client.CallAsync<EntryListResult>(Methods.EntriesList,
+                new EntryListRequest { AssemblyPath = TestAssembly(assembly) }, ct, EntryTimeout);
+            step.Detail = EntryFormat.List(list);
+        }, screenshot: false);
+
+    /// <summary>Calls one test entry with recording; no screenshot (entries have no UI).</summary>
+    public Task<SessionStep> CallEntryAsync(string? assembly, string name, string argument, IEnumerable<PromptAnswerSpec> answers, CancellationToken ct) =>
+        StepAsync($"call entry {name}", async step =>
+        {
+            RequireIdle("call an entry");
+            var request = new EntryCallRequest { AssemblyPath = TestAssembly(assembly), Name = name, Argument = argument, Answers = answers.ToList() };
+            await _host.Client.CallAsync<Empty>(Methods.StartRecording, null, ct, EntryTimeout);
+            var call = await WatchedEntryCall.CallAsync(_host.Client, _dialogs, _ui, request, "session", EntryTimeout, Directory, null, ct);
+            var changes = await _host.Client.CallAsync<ChangeSet>(Methods.StopRecording, null, ct, EntryTimeout);
+            step.Detail = EntryFormat.Call(name, call, changes, Path.Combine(Directory, $"entry-{step.Index:00}.json"));
+        }, screenshot: false);
+
+    private static readonly TimeSpan EntryTimeout = TimeSpan.FromMinutes(5);
+
+    private string TestAssembly(string? assembly) =>
+        !string.IsNullOrWhiteSpace(assembly) ? Path.GetFullPath(assembly)
+        : !string.IsNullOrWhiteSpace(Spec.Run.Assembly) ? Spec.Run.Assembly
+        : throw new ArgumentException("Give the add-in's test assembly (<Addin>.Testing.dll), or pass testAssembly to qa_session_start.");
+
+    private void RequireIdle(string what)
+    {
+        if (_pendingCommand is { IsCompleted: false })
+            throw new InvalidOperationException($"A command is still running; finish it before you {what}.");
+    }
 
     public Task<QueryResult> QueryAsync(QueryRequest request, CancellationToken ct) =>
         _pendingCommand is { IsCompleted: false }

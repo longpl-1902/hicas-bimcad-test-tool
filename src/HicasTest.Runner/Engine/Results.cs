@@ -61,6 +61,10 @@ public sealed class CaseRun
     public ChangeSet? Changes { get; set; }
     public List<DialogEvent> Dialogs { get; } = new();
     public List<AssertionResult> Assertions { get; } = new();
+
+    /// <summary>run.mode entries: one log per entry call.</summary>
+    public List<CallLog> Calls { get; } = new();
+
     public string? ImagePath { get; set; }
     public List<string> Notes { get; } = new();
 }
@@ -83,4 +87,35 @@ public sealed class CaseResult
     public string RunsConsistent => Runs.Count < 2 ? "single" : Runs.Select(r => r.Verdict).Distinct().Count() == 1 ? "yes" : "no";
 
     public string? ReportPath { get; set; }
+}
+
+/// <summary>What one test-entry call returned and changed (report and result.json).</summary>
+public sealed class CallLog
+{
+    public CallLog(string id, string entry, EntryCallResult call, ChangeSet changes, int maxResult)
+    {
+        Id = id;
+        Entry = entry;
+        Status = call.Status;
+        DurationMs = call.DurationMs;
+        Error = call.Error;
+        Result = call.Result is { Length: > 0 } text && text.Length > maxResult ? text[..maxResult] + $"… ({text.Length} chars)" : call.Result;
+        Prompts = call.Prompts;
+        Added = changes.Added.Count;
+        Modified = changes.Modified.Count;
+        Deleted = changes.Deleted.Count;
+        Warnings = changes.Warnings;
+    }
+
+    public string Id { get; }
+    public string Entry { get; }
+    public string Status { get; }
+    public long DurationMs { get; }
+    public string? Error { get; }
+    public string? Result { get; }
+    public List<PromptRecord> Prompts { get; }
+    public int Added { get; }
+    public int Modified { get; }
+    public int Deleted { get; }
+    public List<string> Warnings { get; }
 }

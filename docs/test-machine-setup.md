@@ -17,6 +17,15 @@ use a dev PC or a self-hosted Windows runner signed in with an Autodesk licence.
 6. AutoCAD: optionally add `artifacts\bridges\autocad\<year>` and the lane build folders to `TRUSTEDPATHS`
    in a dedicated test profile to avoid the security prompt. Do this by hand; the tool does not change it.
 
+## Dev machine with a dev manifest
+
+A manifest that loads a build from a worktree on every Revit start (for example `ExternalTool.addin` with `<Assembly>` pointing at
+`<repo>\Outcome\<Addin>.dll`) loads that build into the test host too. For entries cases, HicasTest compares where the add-in's
+assemblies were loaded from with the folder of the test assembly and stops with `ERROR ... would not test the build under test`
+when they differ (typically: testing a lane worktree while the dev manifest points at the main worktree). Point the manifest at the
+build under test, or disable it, then run again. Manifests are matched by `AddInId` only for the add-in under test; a dev manifest
+with another id (`ClientId`) is not detected beforehand, only by this check.
+
 ## Build
 
 ```powershell

@@ -27,7 +27,7 @@ public static class Ledger
             DateTimeOffset.Now.ToString("O", CultureInfo.InvariantCulture),
             result.TestCase.Ticket ?? "",
             result.TestCase.Case ?? result.TestCase.Id,
-            string.Join(";", result.TestCase.Expect.Select(e => e.Kind).Distinct()),
+            string.Join(";", CheckKinds(result.TestCase)),
             result.Build,
             VerdictText.Of(result.Verdict),
             result.RunsConsistent,
@@ -42,6 +42,11 @@ public static class Ledger
         sb.AppendLine(string.Join(",", row.Select(Escape)));
         File.AppendAllText(path, sb.ToString(), new UTF8Encoding(false));
     }
+
+    private static IEnumerable<string> CheckKinds(Model.TestCase testCase) =>
+        testCase.Expect.Concat(testCase.Calls.SelectMany(c => c.Expect)).Select(e => e.Kind)
+            .Concat(testCase.Calls.SelectMany(c => c.ExpectResult.Select(_ => "entry-result").Concat(c.ExpectPrompts.Select(_ => "entry-prompt"))))
+            .Distinct();
 
     internal static string Escape(string value) =>
         value.IndexOfAny(new[] { ',', '"', '\n', '\r' }) < 0 ? value : "\"" + value.Replace("\"", "\"\"") + "\"";

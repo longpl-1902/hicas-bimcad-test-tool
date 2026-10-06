@@ -29,7 +29,7 @@ namespace HicasTest.Protocol
 
     public static class Methods
     {
-        public const string ProtocolVersion = "1";
+        public const string ProtocolVersion = "2";
 
         public const string Info = "bridge.info";
         public const string OpenDocument = "doc.open";
@@ -41,5 +41,7 @@ namespace HicasTest.Protocol
         public const string ExportImage = "view.exportImage";
         public const string SetDialogRules = "dialogs.setRules";
         public const string TakeDialogEvents = "dialogs.take";
+        public const string EntriesList = "entries.list";
+        public const string EntriesCall = "entries.call";
     }
 }

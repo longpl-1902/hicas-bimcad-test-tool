@@ -175,4 +175,75 @@ namespace HicasTest.Protocol
     {
         [DataMember(Name = "events")] public List<DialogEvent> Events { get; set; } = new List<DialogEvent>();
     }
+
+    [DataContract]
+    public sealed class EntryListRequest
+    {
+        /// <summary>The add-in's test assembly (&lt;Addin&gt;.Testing.dll).</summary>
+        [DataMember(Name = "assemblyPath")] public string AssemblyPath { get; set; }
+    }
+
+    [DataContract]
+    public sealed class EntryInfo
+    {
+        [DataMember(Name = "name")] public string Name { get; set; }
+        /// <summary>"main" (whole use case) or "step" (its name is another entry's name plus ".step").</summary>
+        [DataMember(Name = "kind")] public string Kind { get; set; }
+        [DataMember(Name = "readOnly")] public bool ReadOnly { get; set; }
+        [DataMember(Name = "description")] public string Description { get; set; }
+        [DataMember(Name = "contract")] public string Contract { get; set; }
+    }
+
+    [DataContract]
+    public sealed class EntryListResult
+    {
+        [DataMember(Name = "entries")] public List<EntryInfo> Entries { get; set; } = new List<EntryInfo>();
+        /// <summary>The entries would not run the build under test (an assembly of the build is already loaded from elsewhere).</summary>
+        [DataMember(Name = "warnings")] public List<string> Warnings { get; set; } = new List<string>();
+    }
+
+    [DataContract]
+    public sealed class PromptAnswerSpec
+    {
+        [DataMember(Name = "id")] public string Id { get; set; }
+        [DataMember(Name = "option")] public string Option { get; set; }
+    }
+
+    [DataContract]
+    public sealed class EntryCallRequest
+    {
+        [DataMember(Name = "assemblyPath")] public string AssemblyPath { get; set; }
+        [DataMember(Name = "name")] public string Name { get; set; }
+        /// <summary>Request of the feature, as JSON text.</summary>
+        [DataMember(Name = "argument")] public string Argument { get; set; }
+        /// <summary>Scripted answers to the feature's prompts; a prompt without one takes its default.</summary>
+        [DataMember(Name = "answers")] public List<PromptAnswerSpec> Answers { get; set; } = new List<PromptAnswerSpec>();
+    }
+
+    [DataContract]
+    public sealed class PromptRecord
+    {
+        [DataMember(Name = "id")] public string Id { get; set; }
+        [DataMember(Name = "severity")] public string Severity { get; set; }
+        [DataMember(Name = "message")] public string Message { get; set; }
+        [DataMember(Name = "options")] public List<string> Options { get; set; } = new List<string>();
+        [DataMember(Name = "answer")] public string Answer { get; set; }
+        /// <summary>No answer was scripted: the default was used.</summary>
+        [DataMember(Name = "unanswered")] public bool Unanswered { get; set; }
+        /// <summary>A scripted answer whose prompt was never raised.</summary>
+        [DataMember(Name = "unused")] public bool Unused { get; set; }
+    }
+
+    [DataContract]
+    public sealed class EntryCallResult
+    {
+        /// <summary>"ok", or "failed" (the entry threw, or was not found).</summary>
+        [DataMember(Name = "status")] public string Status { get; set; }
+        /// <summary>JSON text returned by the entry.</summary>
+        [DataMember(Name = "result")] public string Result { get; set; }
+        [DataMember(Name = "error")] public string Error { get; set; }
+        [DataMember(Name = "durationMs")] public long DurationMs { get; set; }
+        [DataMember(Name = "prompts")] public List<PromptRecord> Prompts { get; set; } = new List<PromptRecord>();
+        [DataMember(Name = "warnings")] public List<string> Warnings { get; set; } = new List<string>();
+    }
 }

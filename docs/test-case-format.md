@@ -24,7 +24,7 @@ addin:                       # the build under test (lane worktree output)
 model: ../../fixtures/revit/basic_mep.rvt   # copied before every run, never modified
 
 run:
-  mode: postcommand          # postcommand (Revit) | commandline (AutoCAD) | invoke
+  mode: postcommand          # postcommand (Revit) | commandline (AutoCAD) | invoke | entries (see below)
   command: "CustomCtrl_%CustomCtrl_%Hicas%Tools%MyCommand"
   timeoutSec: 300
   # invoke mode:
@@ -57,6 +57,38 @@ expect:
 evidence:
   image: true
 ```
+
+## Test entries (run.mode: entries)
+
+For the logic and flow of a feature, without a person or a UI: the case calls the add-in's **test entries**
+(public static methods marked `[HicasTestEntry]` in its test assembly, which call the same use case as the ribbon
+command; convention and rules in [test-entries.md](test-entries.md)). Calls run in order in one host session, so a
+call sees what the previous one did.
+
+```yaml
+run: { mode: entries, assembly: ../src/MyAddin.Testing/bin/R2024/MyAddin.Testing.dll, timeoutSec: 120 }  # timeout per call
+calls:
+  - id: cancel-branch
+    entry: keyplan.create                        # main gate; step gates: keyplan.create.validate / .plan (read-only) / .apply
+    argument: { level: "Level 1", scale: 100 }   # plain 100 is a number, "100" a string; or argumentFile: request.json
+    answers: [ { id: keyplan.duplicate-name, option: cancel } ]   # scripted answers to the feature's prompts
+    expectResult:                                # checks on the returned JSON (dotted path, [n] indexes)
+      - { path: status, equals: cancelled, source: "ticket #1234 AC-05" }
+    expectPrompts:                               # prompts the feature must (not) raise
+      - { id: keyplan.duplicate-name, severity: confirm, answer: cancel, source: "ticket #1234 AC-05" }
+    expect:                                      # model checks on what THIS call changed (same kinds as below)
+      - { kind: added, count: 0, source: "ticket #1234 AC-05" }
+expect:                                          # model checks on all calls together
+  - { kind: no-warnings }
+```
+
+- `expectResult`: one operator per check — `equals` (numbers with `tolerance`), `min`/`max`, `exists`, `count` (array or object size), `contains`. Names match case-insensitively.
+- `expectPrompts`: `raised: false` asserts the prompt did not occur; `severity` and `answer` (the answer it got, scripted or default).
+- Every check needs a `source`, as everywhere. A prompt without a scripted answer takes its default and is shown as such in the report; an answer for a prompt that never came is noted.
+- A call that throws is a MISMATCH (`entry returns without error`) and the remaining calls are not run.
+- A test entry must not show UI. If a window stays up (the host would hang), the case ends as `ERROR` with a screenshot, and the host is closed.
+- Entries do not export a view image unless `evidence: { image: true }`.
+- Working example: [examples/revit-entries-level.yaml](../examples/revit-entries-level.yaml) with the sample assembly `samples/SampleEntries`.
 
 ## Choosing the host version
 

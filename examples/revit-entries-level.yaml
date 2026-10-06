@@ -1,0 +1,81 @@
+# Test entries (docs/test-entries.md): the sample add-in test assembly samples/SampleEntries.
+# Build it first:  dotnet build samples/SampleEntries -p:RevitVersion=2024
+# The model is a Revit sample whose levels include "Level 1"; replace it with a test fixture of your own.
+id: EXAMPLE-ENTRIES-LEVEL
+ticket: "0000"
+case: E-01
+level: B
+source: examples (flow of the sample feature "create a level")
+
+host: { app: revit, version: 2024 }
+model: "C:/ProgramData/Autodesk/RVT 2024/Dynamo/samples/Data/DynamoSample_2024.rvt"
+
+run:
+  mode: entries
+  assembly: ../samples/SampleEntries/bin/R2024/HicasTest.SampleEntries.dll
+  timeoutSec: 120                      # per call unless the call sets timeoutSec
+
+calls:
+  - id: validate-duplicate             # step gate, read-only: which prompts would the flow raise?
+    entry: sample.level.create.validate
+    argument: { name: "Level 1", elevationMm: 3500 }
+    expectResult:
+      - { path: errors, count: 0, source: "sample contract: a valid request has no errors" }
+      - { path: "prompts[0].id", equals: sample.level.duplicate-name, source: "sample contract: an existing name raises the duplicate-name prompt" }
+    expect:
+      - { kind: added, count: 0, source: "sample contract: validate never writes" }
+
+  - id: plan-duplicate                 # step gate: what would be created?
+    entry: sample.level.create.plan
+    argument: { name: "Level 1", elevationMm: 3500 }
+    expectResult:
+      - { path: name, equals: "Level 1 (2)", source: "sample contract: first free 'name (n)', n starts at 2" }
+      - { path: renamed, equals: "true", source: "sample contract" }
+
+  - id: cancel-branch                  # main gate, prompt answered "cancel": nothing may change
+    entry: sample.level.create
+    argument: { name: "Level 1", elevationMm: 3500 }
+    answers: [ { id: sample.level.duplicate-name, option: cancel } ]
+    expectPrompts:
+      - { id: sample.level.duplicate-name, severity: confirm, answer: cancel, source: "sample contract: duplicate name asks first" }
+    expectResult:
+      - { path: status, equals: cancelled, source: "sample contract: cancel leaves the model unchanged" }
+    expect:
+      - { kind: added, count: 0, source: "sample contract: cancel leaves the model unchanged" }
+
+  - id: rename-branch                  # no answer scripted: the prompt default (rename) applies and is flagged
+    entry: sample.level.create
+    argument: { name: "Level 1", elevationMm: 3500 }
+    expectPrompts:
+      - { id: sample.level.duplicate-name, answer: rename, source: "sample contract: default option is rename" }
+    expectResult:
+      - { path: status, equals: renamed, source: "sample contract" }
+      - { path: name, equals: "Level 1 (2)", source: "sample contract: first free 'name (n)'" }
+    expect:
+      - { kind: added, category: OST_Levels, count: 1, source: "sample contract: one level per accepted request" }
+      - { kind: param, category: OST_Levels, scope: changed, param: Elevation, unit: mm, equals: "3500", tolerance: 0.5, source: "request elevationMm" }
+
+  - id: rename-again                   # a call sees what the previous call did: next free name is (3)
+    entry: sample.level.create
+    argument: { name: "Level 1", elevationMm: 7000 }
+    expectResult:
+      - { path: name, equals: "Level 1 (3)", source: "sample contract: first free 'name (n)', the (2) from the previous call exists" }
+
+  - id: fresh-name                     # no duplicate: the prompt must not be raised
+    entry: sample.level.create
+    argument: { name: "Sample Fresh", elevationMm: 10500 }
+    expectPrompts:
+      - { id: sample.level.duplicate-name, raised: false, source: "sample contract: a free name raises no prompt" }
+    expectResult:
+      - { path: status, equals: created, source: "sample contract" }
+
+  - id: invalid-request
+    entry: sample.level.create
+    argument: { name: "", elevationMm: 0 }
+    expectResult:
+      - { path: status, equals: invalid, source: "sample contract: an empty name is refused" }
+      - { path: errors, count: 1, source: "sample contract" }
+
+expect:                                # whole case, all calls together
+  - { kind: added, category: OST_Levels, count: 3, source: "calls rename-branch, rename-again and fresh-name each create one level" }
+  - { kind: no-warnings }

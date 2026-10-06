@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Referenced by an add-in's test assembly (<Addin>.Testing.dll) that runs inside Revit/AutoCAD next to the add-in:
+    keep it dependency-free, and write C# that compiles for every host year (no records, init, ranges).
+    The bridge finds entries by the attribute's full name, so a project's copy may be a different version.
+  -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <AssemblyName>HicasTest.Contracts</AssemblyName>
+  </PropertyGroup>
+
+</Project>

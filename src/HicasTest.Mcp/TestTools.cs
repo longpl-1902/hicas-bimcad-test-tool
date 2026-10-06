@@ -78,6 +78,45 @@ public static class TestTools
             : string.Join("\n", bridges.Select(b => $"pid {b.Pid}: {b.Host} {b.HostVersion} (pipe {b.PipeName})"));
     }
 
+    [McpServerTool(Name = "list_entries"), Description("List the test entries of an add-in test assembly in a running host (pid from list_bridges).")]
+    public static async Task<string> ListEntries(int pid, string assembly, CancellationToken ct = default)
+    {
+        using var client = await Connect(pid, ct);
+        return EntryFormat.List(await client.CallAsync<EntryListResult>(Methods.EntriesList,
+            new EntryListRequest { AssemblyPath = Path.GetFullPath(assembly) }, ct, TimeSpan.FromMinutes(2)));
+    }
+
+    [McpServerTool(Name = "call_entry"), Description(
+        "Call a test entry in a running host with recording: result JSON, prompts, model changes. 'argument' = request JSON; " +
+        "'answers' = 'promptId=option;promptId=option'. Changes the model unless the entry is read-only: use a host on a test copy.")]
+    public static async Task<string> CallEntry(int pid, string assembly, string name, string argument = "{}", string? answers = null,
+        CancellationToken ct = default)
+    {
+        using var client = await Connect(pid, ct);
+        var request = new EntryCallRequest
+        {
+            AssemblyPath = Path.GetFullPath(assembly),
+            Name = name,
+            Argument = argument,
+            Answers = (answers ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(a => a.Split('=', 2)).Where(p => p.Length == 2)
+                .Select(p => new PromptAnswerSpec { Id = p[0].Trim(), Option = p[1].Trim() }).ToList(),
+        };
+        var wait = TimeSpan.FromMinutes(5);
+        await client.CallAsync<Empty>(Methods.StartRecording, null, ct, wait);
+        var call = await client.CallAsync<EntryCallResult>(Methods.EntriesCall, request, ct, wait);
+        var changes = await client.CallAsync<ChangeSet>(Methods.StopRecording, null, ct, wait);
+        var save = Path.Combine(new RunOptions().OutputDir, "entries", $"{DateTime.Now:yyyyMMdd-HHmmss}-{name}.json");
+        return EntryFormat.Call(name, call, changes, save);
+    }
+
+    private static async Task<BridgeClient> Connect(int pid, CancellationToken ct)
+    {
+        var info = BridgeDiscovery.List().FirstOrDefault(b => b.Pid == pid)
+                   ?? throw new ArgumentException($"No bridge for pid {pid}. Use list_bridges.");
+        return await BridgeClient.ConnectAsync(info.PipeName, TimeSpan.FromSeconds(10), ct);
+    }
+
     [McpServerTool(Name = "query_elements"), Description(
         "Read-only: list elements of a category with parameter values from a running bridge (for writing or debugging test cases). " +
         "Revit category = BuiltInCategory name (OST_Walls); AutoCAD = DXF name (LINE) or *.")]

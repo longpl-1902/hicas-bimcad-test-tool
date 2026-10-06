@@ -42,7 +42,7 @@ flowchart TB
   dev["Dev agent<br/>skill b-auto-run"] --> mcp
   ci["Dev / CI"] --> cli
   subgraph tool["HicasTest trên máy test (.NET 8, ngoài CAD)"]
-    mcp["MCP server<br/>16 tool"] --> runner
+    mcp["MCP server<br/>20 tool"] --> runner
     cli["CLI hicastest"] --> runner
     runner["Runner<br/>YAML case · QA session · launcher · so kỳ vọng · báo cáo · ledger"]
     runner --> ui["UI driver (FlaUI)<br/>bấm nút, gõ chữ, chụp ảnh"]
@@ -128,6 +128,20 @@ expect:
 
 Đầy đủ cú pháp: [docs/test-case-format.md](docs/test-case-format.md).
 
+### Test cổng (entries) — logic và luồng, không cần người thao tác
+
+Với phần **logic, cảnh báo và luồng** của một tính năng, add-in cung cấp các **cổng test**: hàm static trong assembly test
+riêng (`<Addin>.Testing.dll`, không phát hành), đánh dấu `[HicasTestEntry("feature.action")]`, gọi đúng use case mà lệnh
+ribbon gọi. Tool gọi các cổng đó trong Revit/AutoCAD không ai thao tác, ghi lại thay đổi trong model và so với kỳ vọng có nguồn.
+
+- **Cổng chính** `feature.action` (cả use case) và **cổng phụ** `.validate` / `.plan` (chỉ đọc, xem cảnh báo và kế hoạch mà không ghi) / `.apply`.
+- **Cảnh báo là dữ liệu:** use case hỏi/cảnh báo qua `IUserPrompt` (id cố định); khi test, agent trả lời theo kịch bản (`answers`), nhánh "tiếp tục" và "huỷ" là hai case riêng.
+- **Không treo máy:** cổng test không được hiện cửa sổ; nếu có cửa sổ modal nằm lại, case kết thúc `ERROR` kèm ảnh chụp và Revit được đóng.
+- Dùng trong YAML (`run.mode: entries`, `calls:`) hoặc qua MCP: `list_entries`, `call_entry`, `qa_session_list_entries`, `qa_session_call_entry`.
+- Quy ước cho add-in, thư viện `HicasTest.Contracts` (trong gói, thư mục `contracts`) và ví dụ chạy được: [docs/test-entries.md](docs/test-entries.md), `samples/SampleEntries`, [examples/revit-entries-level.yaml](examples/revit-entries-level.yaml).
+
+Đã chạy thật trên Revit 2024: 27 kiểm tra khớp trong 20 giây cả case; dữ liệu sai bị báo MISMATCH; cổng mở hộp thoại bị chặn sau khoảng 5 giây. AutoCAD đã build, chưa chạy thật.
+
 ### QA session — Claude điều khiển từng bước
 
 QA nói với Claude, ví dụ: *"Test tạo keyplan trên Revit 2024 với model basic_mep.rvt, bản build ở …, chụp ảnh từng bước,
@@ -141,6 +155,7 @@ kiểm tra view mới có scale 1:100"*. Claude dùng:
 | `qa_session_click` / `qa_session_type` | Bấm nút ribbon / hộp thoại, gõ giá trị — chụp ảnh sau mỗi bước |
 | `qa_session_finish_command` | Lấy kết quả lệnh sau khi QA thao tác xong hộp thoại |
 | `qa_session_query` | Đọc giá trị tham số trong model để kiểm |
+| `qa_session_list_entries` / `qa_session_call_entry` | Liệt kê / gọi cổng test; kết quả dài được cắt và lưu ra file |
 | `qa_session_screenshot` / `qa_session_note` | Ảnh thêm / ghi chú của QA |
 | `qa_session_end` | Đóng host, xuất `report.md` có tất cả các bước + ảnh |
 

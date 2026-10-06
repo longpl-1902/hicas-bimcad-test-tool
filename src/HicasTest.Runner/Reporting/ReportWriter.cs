@@ -88,6 +88,26 @@ public static class ReportWriter
                 sb.AppendLine();
             }
 
+            if (run.Calls.Count > 0)
+            {
+                sb.AppendLine("Calls:");
+                foreach (var call in run.Calls)
+                {
+                    sb.AppendLine($"- **{call.Id}** `{call.Entry}` — {call.Status} in {call.DurationMs} ms; changes: {call.Added} added, {call.Modified} modified, {call.Deleted} deleted, {call.Warnings.Count} warnings");
+                    if (call.Error != null)
+                        sb.AppendLine($"  - error: {call.Error}");
+                    foreach (var p in call.Prompts)
+                        sb.AppendLine(p.Unused
+                            ? $"  - scripted answer `{p.Id}` = {p.Answer} was never used"
+                            : $"  - prompt `{p.Id}` ({p.Severity}) [{string.Join(" | ", p.Options)}] → {p.Answer}{(p.Unanswered ? " (default)" : "")}: {p.Message}");
+                    foreach (var warning in call.Warnings)
+                        sb.AppendLine($"  - host warning: {warning}");
+                    if (!string.IsNullOrEmpty(call.Result))
+                        sb.AppendLine($"  - result: `{call.Result.Replace("`", "'")}`");
+                }
+                sb.AppendLine();
+            }
+
             if (run.Changes != null)
             {
                 sb.AppendLine($"Changes: {run.Changes.Added.Count} added, {run.Changes.Modified.Count} modified, {run.Changes.Deleted.Count} deleted, {run.Changes.Warnings.Count} warnings.");

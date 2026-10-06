@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Reference implementation of the test-entry convention (docs/test-entries.md) and the live test of the tool.
+    Not part of build.ps1 or CI (needs no host to build, but only runs inside Revit):
+      dotnet build samples/SampleEntries -p:RevitVersion=2024
+    Output: samples/SampleEntries/bin/R<year>/HicasTest.SampleEntries.dll
+  -->
+  <PropertyGroup>
+    <RevitVersion Condition="'$(RevitVersion)' == ''">2024</RevitVersion>
+  </PropertyGroup>
+  <Import Project="..\..\build\HostVersions.props" />
+
+  <PropertyGroup>
+    <TargetFramework>$(HostFramework)</TargetFramework>
+    <AssemblyName>HicasTest.SampleEntries</AssemblyName>
+    <RootNamespace>HicasTest.SampleEntries</RootNamespace>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <BaseIntermediateOutputPath>obj\R$(RevitVersion)\</BaseIntermediateOutputPath>
+    <OutputPath>bin\R$(RevitVersion)\</OutputPath>
+    <DefaultItemExcludes>$(DefaultItemExcludes);obj\**;bin\**</DefaultItemExcludes>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="$(RevitApiVersion)" ExcludeAssets="runtime" PrivateAssets="all" />
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="$(RevitApiVersion)" ExcludeAssets="runtime" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
+    <Reference Include="System.Runtime.Serialization" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\HicasTest.Contracts\HicasTest.Contracts.csproj" />
+  </ItemGroup>
+
+</Project>

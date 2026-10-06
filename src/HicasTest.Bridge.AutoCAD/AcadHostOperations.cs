@@ -160,6 +160,16 @@ namespace HicasTest.Bridge.AutoCAD
 
         public DialogEventList TakeDialogEvents() => new DialogEventList();
 
+        public EntryListResult ListEntries(EntryListRequest request) => EntryInvoker.List(request.AssemblyPath);
+
+        // Application context: the document is locked for the entry, as for invoke mode.
+        public EntryCallResult CallEntry(EntryCallRequest request)
+        {
+            var document = ActiveDocument;
+            using (document.LockDocument())
+                return EntryInvoker.Call(request, document);
+        }
+
         // ---- database events ----
 
         private void OnObjectAppended(object sender, ObjectEventArgs e)

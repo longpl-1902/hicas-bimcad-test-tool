@@ -36,5 +36,11 @@ namespace HicasTest.Bridge.Core
         void SetDialogRules(DialogRulesRequest request);
 
         DialogEventList TakeDialogEvents();
+
+        /// <summary>Test entries of the add-in's test assembly.</summary>
+        EntryListResult ListEntries(EntryListRequest request);
+
+        /// <summary>Runs one test entry on the main thread (AutoCAD: with the document locked).</summary>
+        EntryCallResult CallEntry(EntryCallRequest request);
     }
 }

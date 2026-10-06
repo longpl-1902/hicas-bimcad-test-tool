@@ -9,7 +9,7 @@ Tool that runs hicas-bimcad level-B test cases inside real Revit / AutoCAD. Read
 - README.md is for the team and written in Vietnamese; docs/ and code comments are English.
 - **The tool never writes Pass.** Verdicts are `MATCH / MISMATCH / NOT-RUN / ERROR`. Do not add any path
   that marks a plugin case Pass; that is option 2 and needs an explicit decision.
-- **Bridges (`HicasTest.Bridge.*`, `HicasTest.Protocol`) take no third-party packages.** They run inside the
+- **Bridges (`HicasTest.Bridge.*`, `HicasTest.Protocol`, `HicasTest.Contracts`) take no third-party packages.** They run inside the
   host next to the add-in under test. Only host API reference packages (`Nice3point.Revit.Api.*`,
   `AutoCAD.NET`) with `ExcludeAssets="runtime"`. JSON there = `DataContractJsonSerializer`.
 - Bridge code must compile for **every host year 2021–2027** (net48, net8, net10): no records, `init`, ranges,
@@ -25,6 +25,10 @@ Tool that runs hicas-bimcad level-B test cases inside real Revit / AutoCAD. Read
 ## Layout
 
 - `src/HicasTest.Protocol` — wire DTOs (netstandard2.0)
+- `src/HicasTest.Contracts` — `[HicasTestEntry]`, `TestContext`, `TestMode` for add-in test assemblies (netstandard2.0, no deps;
+  the bridge reaches it by name/reflection only)
+- `samples/SampleEntries` — reference implementation of the test-entry convention and the live test (not in build.ps1/CI);
+  design in [docs/test-entries.md](docs/test-entries.md)
 - `src/HicasTest.Bridge.Core` — pipe server, router, change log, filters (net48; net8.0)
 - `src/HicasTest.Bridge.Revit` / `.AutoCAD` — host adapters, one build per host version
 - `src/HicasTest.Runner` — cases, launchers, FlaUI dialogs/UI driver, QA sessions, assertions, reports, ledger, machine config

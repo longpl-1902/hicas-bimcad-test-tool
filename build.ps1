@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Builds every bridge version and the runner, and lays bridges out as artifacts\bridges\<host>\<year>\.
   With -Package, also produces artifacts\HicasTest-<version>-win-x64.zip for other machines (see install.ps1).
@@ -46,6 +46,13 @@ function Build-Bridge([string] $project, [string] $property, [int] $year, [strin
 foreach ($year in $Revit)   { Build-Bridge 'HicasTest.Bridge.Revit'   'RevitVersion'   $year 'R' 'revit' }
 foreach ($year in $AutoCAD) { Build-Bridge 'HicasTest.Bridge.AutoCAD' 'AutoCADVersion' $year 'A' 'autocad' }
 
+Write-Host "== contracts (referenced by add-in test assemblies)" -ForegroundColor Cyan
+dotnet build (Join-Path $root 'src\HicasTest.Contracts\HicasTest.Contracts.csproj') -c $Configuration $versionArg
+if ($LASTEXITCODE -ne 0) { throw "HicasTest.Contracts failed" }
+$contracts = Join-Path $root 'artifacts\contracts'
+New-Item -ItemType Directory -Force $contracts | Out-Null
+Copy-Item (Join-Path $root "src\HicasTest.Contracts\bin\$Configuration\netstandard2.0\HicasTest.Contracts.*") $contracts -Force
+
 Write-Host "== runner, cli, mcp, tests" -ForegroundColor Cyan
 foreach ($p in 'src\HicasTest.Cli\HicasTest.Cli.csproj', 'src\HicasTest.Mcp\HicasTest.Mcp.csproj', 'tests\HicasTest.Runner.Tests\HicasTest.Runner.Tests.csproj') {
     dotnet build (Join-Path $root $p) -c $Configuration $versionArg
@@ -69,9 +76,14 @@ foreach ($p in $publish.Keys) {
 }
 
 Copy-Item $bridges (Join-Path $pkg 'bridges') -Recurse
+Copy-Item $contracts (Join-Path $pkg 'contracts') -Recurse
 foreach ($item in 'install.ps1', 'README.md', 'docs', 'examples', 'integration') {
     Copy-Item (Join-Path $root $item) $pkg -Recurse
 }
+# Reference implementation of the test-entry convention (source only, no bin/obj).
+$sample = Join-Path $pkg 'samples\SampleEntries'
+New-Item -ItemType Directory -Force $sample | Out-Null
+Copy-Item (Join-Path $root 'samples\SampleEntries\*') $sample -Include '*.cs', '*.csproj' -Force
 Set-Content -Path (Join-Path $pkg 'VERSION') -Value $Version -Encoding ascii
 
 $zip = Join-Path $root "artifacts\HicasTest-$Version-win-x64.zip"

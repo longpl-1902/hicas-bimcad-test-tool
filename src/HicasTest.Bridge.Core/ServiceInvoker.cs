@@ -20,6 +20,12 @@ namespace HicasTest.Bridge.Core
             var method = type.GetMethod(methodName, BindingFlags.Public | BindingFlags.Static)
                          ?? throw new MissingMethodException(typeName, methodName);
 
+            return Invoke(method, hostContext, argument);
+        }
+
+        /// <summary>Calls a public static method; parameters: the host context (by type) and one string argument.</summary>
+        public static string Invoke(MethodInfo method, object hostContext, string argument)
+        {
             var parameters = method.GetParameters();
             var args = new object[parameters.Length];
             for (var i = 0; i < parameters.Length; i++)
